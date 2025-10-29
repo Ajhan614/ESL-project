@@ -1,0 +1,15 @@
+_build/
+build/
+out/
+
+*.o
+*.d
+*.out
+*.map
+*.hex
+*.dfu
+*.zip
+
+*~
+
+.vscode
