@@ -2231,117 +2231,117 @@ Discarded input sections
 Memory Configuration
 
 Name             Origin             Length             Attributes
-FLASH            0x000000000001c000 0x0000000000064000 xr
+FLASH            0x0000000000001000 0x000000000006f000 xr
 RAM              0x0000000020001198 0x000000000001ee68 xrw
 *default*        0x0000000000000000 0xffffffffffffffff
 
 Linker script and memory map
 
 
-.text           0x000000000001c000      0xa10
+.text           0x0000000000001000      0xa10
  *(.isr_vector)
- .isr_vector    0x000000000001c000      0x200 _build/nrf52840_xxaa/gcc_startup_nrf52840.S.o
-                0x000000000001c000                __isr_vector
+ .isr_vector    0x0000000000001000      0x200 _build/nrf52840_xxaa/gcc_startup_nrf52840.S.o
+                0x0000000000001000                __isr_vector
  *(.text*)
- .text          0x000000000001c200       0x88 /usr/lib/gcc/arm-none-eabi/9.2.1/thumb/v7e-m+fp/hard/crtbegin.o
- .text          0x000000000001c288       0x70 /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/crt0.o
-                0x000000000001c288                _stack_init
-                0x000000000001c290                _mainCRTStartup
-                0x000000000001c290                _start
- .text          0x000000000001c2f8       0x3c _build/nrf52840_xxaa/gcc_startup_nrf52840.S.o
-                0x000000000001c2f8                Reset_Handler
-                0x000000000001c320                NMI_Handler
-                0x000000000001c322                HardFault_Handler
-                0x000000000001c324                MemoryManagement_Handler
-                0x000000000001c326                BusFault_Handler
-                0x000000000001c328                UsageFault_Handler
-                0x000000000001c32a                SVC_Handler
-                0x000000000001c32c                DebugMon_Handler
-                0x000000000001c32e                PendSV_Handler
-                0x000000000001c330                SysTick_Handler
-                0x000000000001c332                TIMER2_IRQHandler
-                0x000000000001c332                RTC0_IRQHandler
-                0x000000000001c332                SWI0_EGU0_IRQHandler
-                0x000000000001c332                SWI2_EGU2_IRQHandler
-                0x000000000001c332                GPIOTE_IRQHandler
-                0x000000000001c332                PWM1_IRQHandler
-                0x000000000001c332                POWER_CLOCK_IRQHandler
-                0x000000000001c332                RADIO_IRQHandler
-                0x000000000001c332                PDM_IRQHandler
-                0x000000000001c332                TEMP_IRQHandler
-                0x000000000001c332                QDEC_IRQHandler
-                0x000000000001c332                TIMER3_IRQHandler
-                0x000000000001c332                PWM3_IRQHandler
-                0x000000000001c332                FPU_IRQHandler
-                0x000000000001c332                USBD_IRQHandler
-                0x000000000001c332                SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0_IRQHandler
-                0x000000000001c332                UARTE0_UART0_IRQHandler
-                0x000000000001c332                TIMER4_IRQHandler
-                0x000000000001c332                CRYPTOCELL_IRQHandler
-                0x000000000001c332                I2S_IRQHandler
-                0x000000000001c332                SWI4_EGU4_IRQHandler
-                0x000000000001c332                TIMER0_IRQHandler
-                0x000000000001c332                UARTE1_IRQHandler
-                0x000000000001c332                TIMER1_IRQHandler
-                0x000000000001c332                SPIM3_IRQHandler
-                0x000000000001c332                PWM2_IRQHandler
-                0x000000000001c332                ECB_IRQHandler
-                0x000000000001c332                SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1_IRQHandler
-                0x000000000001c332                Default_Handler
-                0x000000000001c332                SAADC_IRQHandler
-                0x000000000001c332                CCM_AAR_IRQHandler
-                0x000000000001c332                WDT_IRQHandler
-                0x000000000001c332                SWI5_EGU5_IRQHandler
-                0x000000000001c332                RNG_IRQHandler
-                0x000000000001c332                RTC2_IRQHandler
-                0x000000000001c332                PWM0_IRQHandler
-                0x000000000001c332                SWI3_EGU3_IRQHandler
-                0x000000000001c332                RTC1_IRQHandler
-                0x000000000001c332                SWI1_EGU1_IRQHandler
-                0x000000000001c332                SPIM2_SPIS2_SPI2_IRQHandler
-                0x000000000001c332                NFCT_IRQHandler
-                0x000000000001c332                MWU_IRQHandler
-                0x000000000001c332                QSPI_IRQHandler
-                0x000000000001c332                COMP_LPCOMP_IRQHandler
+ .text          0x0000000000001200       0x88 /usr/lib/gcc/arm-none-eabi/9.2.1/thumb/v7e-m+fp/hard/crtbegin.o
+ .text          0x0000000000001288       0x70 /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/crt0.o
+                0x0000000000001288                _stack_init
+                0x0000000000001290                _mainCRTStartup
+                0x0000000000001290                _start
+ .text          0x00000000000012f8       0x3c _build/nrf52840_xxaa/gcc_startup_nrf52840.S.o
+                0x00000000000012f8                Reset_Handler
+                0x0000000000001320                NMI_Handler
+                0x0000000000001322                HardFault_Handler
+                0x0000000000001324                MemoryManagement_Handler
+                0x0000000000001326                BusFault_Handler
+                0x0000000000001328                UsageFault_Handler
+                0x000000000000132a                SVC_Handler
+                0x000000000000132c                DebugMon_Handler
+                0x000000000000132e                PendSV_Handler
+                0x0000000000001330                SysTick_Handler
+                0x0000000000001332                TIMER2_IRQHandler
+                0x0000000000001332                RTC0_IRQHandler
+                0x0000000000001332                SWI0_EGU0_IRQHandler
+                0x0000000000001332                SWI2_EGU2_IRQHandler
+                0x0000000000001332                GPIOTE_IRQHandler
+                0x0000000000001332                PWM1_IRQHandler
+                0x0000000000001332                POWER_CLOCK_IRQHandler
+                0x0000000000001332                RADIO_IRQHandler
+                0x0000000000001332                PDM_IRQHandler
+                0x0000000000001332                TEMP_IRQHandler
+                0x0000000000001332                QDEC_IRQHandler
+                0x0000000000001332                TIMER3_IRQHandler
+                0x0000000000001332                PWM3_IRQHandler
+                0x0000000000001332                FPU_IRQHandler
+                0x0000000000001332                USBD_IRQHandler
+                0x0000000000001332                SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0_IRQHandler
+                0x0000000000001332                UARTE0_UART0_IRQHandler
+                0x0000000000001332                TIMER4_IRQHandler
+                0x0000000000001332                CRYPTOCELL_IRQHandler
+                0x0000000000001332                I2S_IRQHandler
+                0x0000000000001332                SWI4_EGU4_IRQHandler
+                0x0000000000001332                TIMER0_IRQHandler
+                0x0000000000001332                UARTE1_IRQHandler
+                0x0000000000001332                TIMER1_IRQHandler
+                0x0000000000001332                SPIM3_IRQHandler
+                0x0000000000001332                PWM2_IRQHandler
+                0x0000000000001332                ECB_IRQHandler
+                0x0000000000001332                SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1_IRQHandler
+                0x0000000000001332                Default_Handler
+                0x0000000000001332                SAADC_IRQHandler
+                0x0000000000001332                CCM_AAR_IRQHandler
+                0x0000000000001332                WDT_IRQHandler
+                0x0000000000001332                SWI5_EGU5_IRQHandler
+                0x0000000000001332                RNG_IRQHandler
+                0x0000000000001332                RTC2_IRQHandler
+                0x0000000000001332                PWM0_IRQHandler
+                0x0000000000001332                SWI3_EGU3_IRQHandler
+                0x0000000000001332                RTC1_IRQHandler
+                0x0000000000001332                SWI1_EGU1_IRQHandler
+                0x0000000000001332                SPIM2_SPIS2_SPI2_IRQHandler
+                0x0000000000001332                NFCT_IRQHandler
+                0x0000000000001332                MWU_IRQHandler
+                0x0000000000001332                QSPI_IRQHandler
+                0x0000000000001332                COMP_LPCOMP_IRQHandler
  .text.bsp_board_led_on
-                0x000000000001c334       0x24 _build/nrf52840_xxaa/boards.c.o
-                0x000000000001c334                bsp_board_led_on
+                0x0000000000001334       0x24 _build/nrf52840_xxaa/boards.c.o
+                0x0000000000001334                bsp_board_led_on
  .text.bsp_board_led_off
-                0x000000000001c358       0x24 _build/nrf52840_xxaa/boards.c.o
-                0x000000000001c358                bsp_board_led_off
+                0x0000000000001358       0x24 _build/nrf52840_xxaa/boards.c.o
+                0x0000000000001358                bsp_board_led_off
  .text.bsp_board_init
-                0x000000000001c37c       0xd4 _build/nrf52840_xxaa/boards.c.o
-                0x000000000001c37c                bsp_board_init
+                0x000000000000137c       0xd4 _build/nrf52840_xxaa/boards.c.o
+                0x000000000000137c                bsp_board_init
  .text.startup.main
-                0x000000000001c450       0x90 _build/nrf52840_xxaa/main.c.o
-                0x000000000001c450                main
+                0x0000000000001450       0x88 _build/nrf52840_xxaa/main.c.o
+                0x0000000000001450                main
  .text.SystemInit
-                0x000000000001c4e0      0x254 _build/nrf52840_xxaa/system_nrf52840.c.o
-                0x000000000001c4e0                SystemInit
- .text          0x000000000001c734        0xc /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-atexit.o)
-                0x000000000001c734                atexit
- .text          0x000000000001c740       0x28 /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-exit.o)
-                0x000000000001c740                exit
- .text          0x000000000001c768       0x34 /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-fini.o)
-                0x000000000001c768                __libc_fini_array
- .text          0x000000000001c79c       0x48 /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-init.o)
-                0x000000000001c79c                __libc_init_array
- .text          0x000000000001c7e4       0xa0 /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-memset.o)
-                0x000000000001c7e4                memset
- .text          0x000000000001c884       0xa0 /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-__atexit.o)
-                0x000000000001c884                __register_exitproc
- .text          0x000000000001c924       0x9c /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-__call_atexit.o)
-                0x000000000001c924                __call_exitprocs
- .text          0x000000000001c9c0        0x4 /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libnosys.a(_exit.o)
-                0x000000000001c9c0                _exit
+                0x00000000000014d8      0x254 _build/nrf52840_xxaa/system_nrf52840.c.o
+                0x00000000000014d8                SystemInit
+ .text          0x000000000000172c        0xc /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-atexit.o)
+                0x000000000000172c                atexit
+ .text          0x0000000000001738       0x28 /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-exit.o)
+                0x0000000000001738                exit
+ .text          0x0000000000001760       0x34 /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-fini.o)
+                0x0000000000001760                __libc_fini_array
+ .text          0x0000000000001794       0x48 /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-init.o)
+                0x0000000000001794                __libc_init_array
+ .text          0x00000000000017dc       0xa0 /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-memset.o)
+                0x00000000000017dc                memset
+ .text          0x000000000000187c       0xa0 /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-__atexit.o)
+                0x000000000000187c                __register_exitproc
+ .text          0x000000000000191c       0x9c /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-__call_atexit.o)
+                0x000000000000191c                __call_exitprocs
+ .text          0x00000000000019b8        0x4 /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libnosys.a(_exit.o)
+                0x00000000000019b8                _exit
  *(.init)
- .init          0x000000000001c9c4        0x4 /usr/lib/gcc/arm-none-eabi/9.2.1/thumb/v7e-m+fp/hard/crti.o
-                0x000000000001c9c4                _init
- .init          0x000000000001c9c8        0x8 /usr/lib/gcc/arm-none-eabi/9.2.1/thumb/v7e-m+fp/hard/crtn.o
+ .init          0x00000000000019bc        0x4 /usr/lib/gcc/arm-none-eabi/9.2.1/thumb/v7e-m+fp/hard/crti.o
+                0x00000000000019bc                _init
+ .init          0x00000000000019c0        0x8 /usr/lib/gcc/arm-none-eabi/9.2.1/thumb/v7e-m+fp/hard/crtn.o
  *(.fini)
- .fini          0x000000000001c9d0        0x4 /usr/lib/gcc/arm-none-eabi/9.2.1/thumb/v7e-m+fp/hard/crti.o
-                0x000000000001c9d0                _fini
- .fini          0x000000000001c9d4        0x8 /usr/lib/gcc/arm-none-eabi/9.2.1/thumb/v7e-m+fp/hard/crtn.o
+ .fini          0x00000000000019c8        0x4 /usr/lib/gcc/arm-none-eabi/9.2.1/thumb/v7e-m+fp/hard/crti.o
+                0x00000000000019c8                _fini
+ .fini          0x00000000000019cc        0x8 /usr/lib/gcc/arm-none-eabi/9.2.1/thumb/v7e-m+fp/hard/crtn.o
  *crtbegin.o(.ctors)
  *crtbegin?.o(.ctors)
  *(EXCLUDE_FILE(*crtend.o *crtend?.o) .ctors)
@@ -2354,72 +2354,73 @@ Linker script and memory map
  *(.dtors)
  *(.rodata*)
  .rodata.m_board_led_list
-                0x000000000001c9dc        0x4 _build/nrf52840_xxaa/boards.c.o
- .rodata        0x000000000001c9e0       0x10 _build/nrf52840_xxaa/main.c.o
+                0x00000000000019d4        0x4 _build/nrf52840_xxaa/boards.c.o
+ .rodata        0x00000000000019d8       0x10 _build/nrf52840_xxaa/main.c.o
+ *fill*         0x00000000000019e8        0x8 
  .rodata.delay_machine_code.8413
-                0x000000000001c9f0        0x6 _build/nrf52840_xxaa/main.c.o
- *fill*         0x000000000001c9f6        0x2 
+                0x00000000000019f0        0x6 _build/nrf52840_xxaa/main.c.o
+ *fill*         0x00000000000019f6        0x2 
  .rodata.CSWTCH.15
-                0x000000000001c9f8        0x6 _build/nrf52840_xxaa/system_nrf52840.c.o
- *fill*         0x000000000001c9fe        0x2 
+                0x00000000000019f8        0x6 _build/nrf52840_xxaa/system_nrf52840.c.o
+ *fill*         0x00000000000019fe        0x2 
  .rodata.CSWTCH.6
-                0x000000000001ca00        0x6 _build/nrf52840_xxaa/system_nrf52840.c.o
- *fill*         0x000000000001ca06        0x2 
- .rodata        0x000000000001ca08        0x4 /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-impure.o)
-                0x000000000001ca08                _global_impure_ptr
+                0x0000000000001a00        0x6 _build/nrf52840_xxaa/system_nrf52840.c.o
+ *fill*         0x0000000000001a06        0x2 
+ .rodata        0x0000000000001a08        0x4 /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-impure.o)
+                0x0000000000001a08                _global_impure_ptr
  *(.eh_frame*)
- .eh_frame      0x000000000001ca0c        0x0 /usr/lib/gcc/arm-none-eabi/9.2.1/thumb/v7e-m+fp/hard/crtbegin.o
- .eh_frame      0x000000000001ca0c        0x4 /usr/lib/gcc/arm-none-eabi/9.2.1/thumb/v7e-m+fp/hard/crtend.o
+ .eh_frame      0x0000000000001a0c        0x0 /usr/lib/gcc/arm-none-eabi/9.2.1/thumb/v7e-m+fp/hard/crtbegin.o
+ .eh_frame      0x0000000000001a0c        0x4 /usr/lib/gcc/arm-none-eabi/9.2.1/thumb/v7e-m+fp/hard/crtend.o
 
-.glue_7         0x000000000001ca10        0x0
- .glue_7        0x000000000001ca10        0x0 linker stubs
+.glue_7         0x0000000000001a10        0x0
+ .glue_7        0x0000000000001a10        0x0 linker stubs
 
-.glue_7t        0x000000000001ca10        0x0
- .glue_7t       0x000000000001ca10        0x0 linker stubs
+.glue_7t        0x0000000000001a10        0x0
+ .glue_7t       0x0000000000001a10        0x0 linker stubs
 
-.vfp11_veneer   0x000000000001ca10        0x0
- .vfp11_veneer  0x000000000001ca10        0x0 linker stubs
+.vfp11_veneer   0x0000000000001a10        0x0
+ .vfp11_veneer  0x0000000000001a10        0x0 linker stubs
 
-.v4_bx          0x000000000001ca10        0x0
- .v4_bx         0x000000000001ca10        0x0 linker stubs
+.v4_bx          0x0000000000001a10        0x0
+ .v4_bx         0x0000000000001a10        0x0 linker stubs
 
-.iplt           0x000000000001ca10        0x0
- .iplt          0x000000000001ca10        0x0 /usr/lib/gcc/arm-none-eabi/9.2.1/thumb/v7e-m+fp/hard/crtbegin.o
+.iplt           0x0000000000001a10        0x0
+ .iplt          0x0000000000001a10        0x0 /usr/lib/gcc/arm-none-eabi/9.2.1/thumb/v7e-m+fp/hard/crtbegin.o
 
 .mem_section_dummy_rom
 
 .log_const_data
-                0x000000000001ca10        0x0
+                0x0000000000001a10        0x0
                 [!provide]                        PROVIDE (__start_log_const_data = .)
  *(SORT_BY_NAME(.log_const_data*))
                 [!provide]                        PROVIDE (__stop_log_const_data = .)
 
-.log_backends   0x000000000001ca10        0x0
+.log_backends   0x0000000000001a10        0x0
                 [!provide]                        PROVIDE (__start_log_backends = .)
  *(SORT_BY_NAME(.log_backends*))
                 [!provide]                        PROVIDE (__stop_log_backends = .)
 
-.nrf_balloc     0x000000000001ca10        0x0
+.nrf_balloc     0x0000000000001a10        0x0
                 [!provide]                        PROVIDE (__start_nrf_balloc = .)
  *(.nrf_balloc)
                 [!provide]                        PROVIDE (__stop_nrf_balloc = .)
 
 .ARM.extab
  *(.ARM.extab* .gnu.linkonce.armextab.*)
-                0x000000000001ca10                __exidx_start = .
+                0x0000000000001a10                __exidx_start = .
 
-.ARM.exidx      0x000000000001ca10        0x8
+.ARM.exidx      0x0000000000001a10        0x8
  *(.ARM.exidx* .gnu.linkonce.armexidx.*)
- .ARM.exidx     0x000000000001ca10        0x8 /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/crt0.o
+ .ARM.exidx     0x0000000000001a10        0x8 /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/crt0.o
                                          0x10 (size before relaxing)
-                0x000000000001ca18                __exidx_end = .
+                0x0000000000001a18                __exidx_end = .
 
-.rel.dyn        0x000000000001ca18        0x0
- .rel.iplt      0x000000000001ca18        0x0 /usr/lib/gcc/arm-none-eabi/9.2.1/thumb/v7e-m+fp/hard/crtbegin.o
-                0x000000000001ca18                . = ALIGN (0x4)
-                0x000000000001ca18                __etext = .
+.rel.dyn        0x0000000000001a18        0x0
+ .rel.iplt      0x0000000000001a18        0x0 /usr/lib/gcc/arm-none-eabi/9.2.1/thumb/v7e-m+fp/hard/crtbegin.o
+                0x0000000000001a18                . = ALIGN (0x4)
+                0x0000000000001a18                __etext = .
 
-.data           0x0000000020001198       0x70 load address 0x000000000001ca18
+.data           0x0000000020001198       0x70 load address 0x0000000000001a18
                 0x0000000020001198                __data_start__ = .
  *(vtable)
  *(.data*)
@@ -2490,13 +2491,13 @@ LOAD /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/
 END GROUP
 
 .tm_clone_table
-                0x0000000020001208        0x0 load address 0x000000000001ca88
+                0x0000000020001208        0x0 load address 0x0000000000001a88
  .tm_clone_table
                 0x0000000020001208        0x0 /usr/lib/gcc/arm-none-eabi/9.2.1/thumb/v7e-m+fp/hard/crtbegin.o
  .tm_clone_table
                 0x0000000020001208        0x0 /usr/lib/gcc/arm-none-eabi/9.2.1/thumb/v7e-m+fp/hard/crtend.o
 
-.igot.plt       0x0000000020001208        0x0 load address 0x000000000001ca88
+.igot.plt       0x0000000020001208        0x0 load address 0x0000000000001a88
  .igot.plt      0x0000000020001208        0x0 /usr/lib/gcc/arm-none-eabi/9.2.1/thumb/v7e-m+fp/hard/crtbegin.o
                 0x0000000020001208                . = ALIGN (0x4)
 
@@ -2514,7 +2515,7 @@ END GROUP
  *(SORT_BY_NAME(.log_filter_data*))
                 [!provide]                        PROVIDE (__stop_log_filter_data = .)
 
-.bss            0x0000000020001208       0xac load address 0x000000000001ca88
+.bss            0x0000000020001208       0xac load address 0x0000000000001a88
                 0x0000000020001208                . = ALIGN (0x4)
                 0x0000000020001208                __bss_start__ = .
  *(.bss*)
@@ -2605,37 +2606,37 @@ LOAD linker stubs
  .comment       0x00000000000000a7       0x4f /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libnosys.a(_exit.o)
  .comment       0x00000000000000a7       0x5a /usr/lib/gcc/arm-none-eabi/9.2.1/thumb/v7e-m+fp/hard/crtend.o
 
-.debug_line     0x0000000000000000     0x2e87
+.debug_line     0x0000000000000000     0x2e7e
  .debug_line    0x0000000000000000       0x87 /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/crt0.o
  .debug_line    0x0000000000000087       0x91 _build/nrf52840_xxaa/gcc_startup_nrf52840.S.o
  .debug_line    0x0000000000000118     0x105e _build/nrf52840_xxaa/boards.c.o
- .debug_line    0x0000000000001176      0x893 _build/nrf52840_xxaa/main.c.o
- .debug_line    0x0000000000001a09      0x7d6 _build/nrf52840_xxaa/system_nrf52840.c.o
- .debug_line    0x00000000000021df      0x14a /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-atexit.o)
- .debug_line    0x0000000000002329      0x16c /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-exit.o)
- .debug_line    0x0000000000002495       0xd7 /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-fini.o)
- .debug_line    0x000000000000256c       0xe3 /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-impure.o)
- .debug_line    0x000000000000264f      0x10d /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-init.o)
- .debug_line    0x000000000000275c      0x26b /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-memset.o)
- .debug_line    0x00000000000029c7      0x228 /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-__atexit.o)
- .debug_line    0x0000000000002bef      0x22a /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-__call_atexit.o)
- .debug_line    0x0000000000002e19       0x6e /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libnosys.a(_exit.o)
+ .debug_line    0x0000000000001176      0x88a _build/nrf52840_xxaa/main.c.o
+ .debug_line    0x0000000000001a00      0x7d6 _build/nrf52840_xxaa/system_nrf52840.c.o
+ .debug_line    0x00000000000021d6      0x14a /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-atexit.o)
+ .debug_line    0x0000000000002320      0x16c /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-exit.o)
+ .debug_line    0x000000000000248c       0xd7 /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-fini.o)
+ .debug_line    0x0000000000002563       0xe3 /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-impure.o)
+ .debug_line    0x0000000000002646      0x10d /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-init.o)
+ .debug_line    0x0000000000002753      0x26b /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-memset.o)
+ .debug_line    0x00000000000029be      0x228 /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-__atexit.o)
+ .debug_line    0x0000000000002be6      0x22a /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-__call_atexit.o)
+ .debug_line    0x0000000000002e10       0x6e /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libnosys.a(_exit.o)
 
-.debug_info     0x0000000000000000     0x893f
+.debug_info     0x0000000000000000     0x892b
  .debug_info    0x0000000000000000       0x26 /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/crt0.o
  .debug_info    0x0000000000000026       0x26 _build/nrf52840_xxaa/gcc_startup_nrf52840.S.o
  .debug_info    0x000000000000004c     0x206b _build/nrf52840_xxaa/boards.c.o
- .debug_info    0x00000000000020b7      0xcf1 _build/nrf52840_xxaa/main.c.o
- .debug_info    0x0000000000002da8     0x18c5 _build/nrf52840_xxaa/system_nrf52840.c.o
- .debug_info    0x000000000000466d      0x995 /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-atexit.o)
- .debug_info    0x0000000000005002      0x9e7 /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-exit.o)
- .debug_info    0x00000000000059e9      0x102 /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-fini.o)
- .debug_info    0x0000000000005aeb      0x92a /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-impure.o)
- .debug_info    0x0000000000006415      0x11a /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-init.o)
- .debug_info    0x000000000000652f      0xf21 /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-memset.o)
- .debug_info    0x0000000000007450      0xa3c /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-__atexit.o)
- .debug_info    0x0000000000007e8c      0xa10 /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-__call_atexit.o)
- .debug_info    0x000000000000889c       0xa3 /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libnosys.a(_exit.o)
+ .debug_info    0x00000000000020b7      0xcdd _build/nrf52840_xxaa/main.c.o
+ .debug_info    0x0000000000002d94     0x18c5 _build/nrf52840_xxaa/system_nrf52840.c.o
+ .debug_info    0x0000000000004659      0x995 /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-atexit.o)
+ .debug_info    0x0000000000004fee      0x9e7 /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-exit.o)
+ .debug_info    0x00000000000059d5      0x102 /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-fini.o)
+ .debug_info    0x0000000000005ad7      0x92a /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-impure.o)
+ .debug_info    0x0000000000006401      0x11a /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-init.o)
+ .debug_info    0x000000000000651b      0xf21 /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-memset.o)
+ .debug_info    0x000000000000743c      0xa3c /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-__atexit.o)
+ .debug_info    0x0000000000007e78      0xa10 /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-__call_atexit.o)
+ .debug_info    0x0000000000008888       0xa3 /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libnosys.a(_exit.o)
 
 .debug_abbrev   0x0000000000000000     0x18fd
  .debug_abbrev  0x0000000000000000       0x14 /usr/lib/gcc/arm-none-eabi/9.2.1/../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/crt0.o
