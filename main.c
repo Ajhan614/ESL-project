@@ -53,13 +53,16 @@
 #include "nrf_delay.h"
 #include "nrf_gpio.h"
 
-
-#define LED_RED_PIN 13
+#define LED_RED_PIN   13
 #define LED_GREEN_PIN 14
-#define LED_BLUE_PIN 15
-#define USER_BUTTON_PIN  NRF_GPIO_PIN_MAP(1,6)
+#define LED_BLUE_PIN  15
+#define USER_BUTTON_PIN NRF_GPIO_PIN_MAP(1,6)
+#define LED_RED_PIN NRF_GPIO_PIN_MAP(0,6)  
 
-void rgb_init(){
+void rgb_init(void)
+{
+    nrf_gpio_cfg_output(LED_RED_PIN);
+
     nrf_gpio_cfg_output(LED_RED_PIN);
     nrf_gpio_cfg_output(LED_GREEN_PIN);
     nrf_gpio_cfg_output(LED_BLUE_PIN);
@@ -71,52 +74,53 @@ void rgb_init(){
     nrf_gpio_cfg_input(USER_BUTTON_PIN, NRF_GPIO_PIN_PULLUP);
 }
 
-/**
- * @brief Function for application main entry.
- */
 int main(void)
 {
     rgb_init();
 
-    int nums[4] = {3,1,2};
-    int temp[4] = {3,1,2};
     int i = 0;
+
     while (true)
     {
-        //Нажали
-        while(nrf_gpio_pin_read(USER_BUTTON_PIN) == 0){
-            if(temp[i] - 1 < 0){
-                temp[i] = nums[i];
-                if(++i > 2)
-                    i = 0;  
-            }
-            else{
-                temp[i]--;
-            }
-            switch (i){
+        if (nrf_gpio_pin_read(USER_BUTTON_PIN) == 0) {
+            // Кнопка нажата — LED включен
+            nrf_gpio_pin_clear(LED_RED_PIN);
+        } else {
+            // Кнопка отпущена — LED выключен
+            nrf_gpio_pin_set(LED_RED_PIN);
+        }
+        nrf_delay_ms(10);
+        
+        if (nrf_gpio_pin_read(USER_BUTTON_PIN) == 0)  // нажали
+        {
+            switch (i)
+            {
                 case 0:
-                nrf_gpio_pin_clear(LED_RED_PIN);
-                nrf_delay(50);
-                break;
+                    nrf_gpio_pin_clear(LED_RED_PIN);
+                    nrf_delay_ms(200);
+                    nrf_gpio_pin_set(LED_RED_PIN);
+                    break;
 
                 case 1:
-                nrf_gpio_pin_clear(LED_GREEN_PIN);
-                nrf_delay(50);
-                break;
+                    nrf_gpio_pin_clear(LED_GREEN_PIN);
+                    nrf_delay_ms(200);
+                    nrf_gpio_pin_set(LED_GREEN_PIN);
+                    break;
 
                 case 2:
-                nrf_gpio_pin_clear(LED_BLUE_PIN);
-                nrf_delay(50);
-                break;
-
-                default:
-                break;
+                    nrf_gpio_pin_clear(LED_BLUE_PIN);
+                    nrf_delay_ms(200);
+                    nrf_gpio_pin_set(LED_BLUE_PIN);
+                    break;
             }
-        }
 
+            i++;
+            if (i > 2)
+                i = 0;
+
+            // Ждём, пока кнопку отпустят (антидребезг)
+            while (nrf_gpio_pin_read(USER_BUTTON_PIN) == 0)
+                nrf_delay_ms(10);
+        }
     }
 }
-
-/**
- *@}
- **/
