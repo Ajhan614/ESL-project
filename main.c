@@ -22,19 +22,27 @@ void rgb_init(){
 } 
 /** * @brief Function for application main entry. */ 
 int main(void) { 
+
     rgb_init(); 
+
     int nums[4] = {6,4,5}; 
     int temp[4] = {6,4,5}; 
     int i = 0; 
+
     while (true) { 
-        //Нажали 
         if(nrf_gpio_pin_read(USER_BUTTON_PIN) == 0){ 
+
             if(temp[i] - 1 < 0){ 
                 temp[i] = nums[i]; 
-                if(++i > 2) 
-                i = 0; 
+                if((i + 1) > 2) 
+                    i = 0; 
+                else
+                    i++;
             } 
-            else{ temp[i]--; } 
+            else{
+                temp[i]--; 
+            } 
+
             switch (i){ 
                 case 0: 
                 nrf_gpio_pin_clear(LED_RED_PIN); 
@@ -53,10 +61,8 @@ int main(void) {
                 nrf_delay_ms(500); 
                 nrf_gpio_pin_set(LED_BLUE_PIN); 
                 break;
-             
             } 
         } 
-        else { nrf_delay_ms(10); }
     } 
 } 
 /** 
