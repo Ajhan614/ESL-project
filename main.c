@@ -12,7 +12,7 @@
 #define LED_BLUE_PIN NRF_GPIO_PIN_MAP(0,12)  
 #define USER_BUTTON_PIN NRF_GPIO_PIN_MAP(1,6) 
 
-#define DOUBLE_CLICK_MS 300
+#define DOUBLE_CLICK_MS 1000000
 #define PWM_TOP_VALUE 1000     
 #define PWM_STEP      20        
 #define FADE_DELAY_MS 5     
@@ -22,10 +22,8 @@ volatile int current_duty = 0;
 volatile int current_cycle = 0;
 volatile bool fade_up = true;
 volatile bool animating = false;
-
-volatile uint32_t systick_ms = 0;
-volatile uint32_t last_click_ms = 0;
 volatile bool first_click = false;
+nrfx_systick_state_t state;
 
 const int nums[3] = {6,4,5};
 
@@ -60,23 +58,21 @@ void on_double_click(){
 }
 void button_event_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 {
-    uint32_t now = systick_ms;
-
     if (!first_click)
     {
+        nrfx_systick_get(&state);
         first_click = true;
-        last_click_ms = now;
     }
     else
     {
-        if(now - last_click_ms < DOUBLE_CLICK_MS)
+        if(!nrfx_systick_test(&state, DOUBLE_CLICK_MS))
         {
             first_click = false;
             on_double_click();
         }
         else
         {
-            last_click_ms = now;  // слишком медленно -> это новый первый клик
+            nrfx_systick_get(&state);
         }
     }
 }
@@ -126,6 +122,7 @@ void rgb_init(){
 /** * @brief Function for application main entry. */ 
 int main(void) { 
     rgb_init(); 
+    nrfx_systick_init();
 
     while (true) { 
         if (animating)
@@ -152,7 +149,10 @@ int main(void) {
                     if (current_cycle >= nums[current_color])
                     {
                         current_cycle = 0;
-                        current_color = (current_color + 1) % 3;
+                        if(current_color + 1 > 2)
+                            current_color = 0;
+                        else
+                            current_color = current_color + 1;
                     }
                 }
             }
