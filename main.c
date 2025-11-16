@@ -4,6 +4,7 @@
 #include "nrf_delay.h" 
 #include "nrfx_gpiote.h" 
 #include "nrfx_systick.h" 
+#include "nrfx_pwm.h" 
 #include "nrf_gpio.h" 
 
 #define LED_RED_PIN NRF_GPIO_PIN_MAP(0,8) 
@@ -11,49 +12,51 @@
 #define LED_BLUE_PIN NRF_GPIO_PIN_MAP(0,12)  
 #define USER_BUTTON_PIN NRF_GPIO_PIN_MAP(1,6) 
 
-#define DOUBLE_CLICK_MS 1000
+#define DOUBLE_CLICK_MS 300
+#define PWM_TOP_VALUE 1000     
+#define PWM_STEP      20        
+#define FADE_DELAY_MS 5     
+
+volatile int current_color = 0;
+volatile int current_duty = 0;
+volatile int current_cycle = 0;
+volatile bool fade_up = true;
+volatile bool animating = false;
 
 volatile uint32_t systick_ms = 0;
 volatile uint32_t last_click_ms = 0;
 volatile bool first_click = false;
 
+const int nums[3] = {6,4,5};
+
+static nrfx_pwm_t pwm_instance = NRFX_PWM_INSTANCE(0);
+static nrf_pwm_values_individual_t pwm_values = {
+    .channel_0 = 0,     
+    .channel_1 = 0,    
+    .channel_2 = 0,     
+    .channel_3 = 0      
+};
+static nrf_pwm_sequence_t pwm_seq =
+{
+    .values.p_individual = &pwm_values,
+    .length = 4,           
+    .repeats = 0,
+    .end_delay = 0
+};
+void set_pwm_duty(int color, int duty)
+{
+    if (duty < 0) duty = 0;
+    if (duty > PWM_TOP_VALUE) duty = PWM_TOP_VALUE;
+
+    if (color == 0)
+        pwm_values.channel_0 = duty;  
+    else if (color == 1)
+        pwm_values.channel_1 = duty;  
+    else
+        pwm_values.channel_2 = duty;  
+}
 void on_double_click(){
-    int nums[4] = {6,4,5}; 
-    int temp[4] = {6,4,5}; 
-    int i = 0; 
-
-    if(temp[i] - 1 < 0){ 
-        temp[i] = nums[i]; 
-        if((i + 1) > 2) 
-            i = 0; 
-        else
-            i++;
-        } 
-    else{
-        temp[i]--; 
-    } 
-
-    switch (i){ 
-        case 0: 
-        nrf_gpio_pin_clear(LED_RED_PIN); 
-        nrf_delay_ms(500); 
-        nrf_gpio_pin_set(LED_RED_PIN); 
-        break; 
-
-        case 1: 
-        nrf_gpio_pin_clear(LED_GREEN_PIN); 
-        nrf_delay_ms(500); 
-        nrf_gpio_pin_set(LED_GREEN_PIN); 
-        break; 
-                
-        case 2: 
-        nrf_gpio_pin_clear(LED_BLUE_PIN); 
-        nrf_delay_ms(500); 
-        nrf_gpio_pin_set(LED_BLUE_PIN); 
-        break;
-    } 
-            
-    nrf_delay_ms(200); 
+    animating = !animating;
 }
 void button_event_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 {
@@ -93,13 +96,69 @@ void rgb_init(){
     nrf_gpio_pin_set(LED_RED_PIN); 
     nrf_gpio_pin_set(LED_GREEN_PIN); 
     nrf_gpio_pin_set(LED_BLUE_PIN); 
+    nrfx_pwm_config_t const config =
+    {
+        .output_pins =
+        {
+            LED_RED_PIN   | NRFX_PWM_PIN_INVERTED,
+            LED_GREEN_PIN | NRFX_PWM_PIN_INVERTED,
+            LED_BLUE_PIN  | NRFX_PWM_PIN_INVERTED,
+            NRFX_PWM_PIN_NOT_USED,
+        },
+
+        .irq_priority = NRFX_PWM_DEFAULT_CONFIG_IRQ_PRIORITY,
+        .base_clock   = NRF_PWM_CLK_1MHz,
+        .count_mode   = NRF_PWM_MODE_UP,
+        .top_value    = PWM_TOP_VALUE,
+        .load_mode    = NRF_PWM_LOAD_INDIVIDUAL,
+        .step_mode    = NRF_PWM_STEP_AUTO
+    };
+
+    nrfx_pwm_init(&pwm_instance, &config, NULL);
+
+    nrfx_pwm_simple_playback(
+        &pwm_instance, 
+        &pwm_seq,
+        1,                       // 1 цикл
+        NRFX_PWM_FLAG_LOOP       // бесконечный повтор (анимация)
+    );
 } 
 /** * @brief Function for application main entry. */ 
 int main(void) { 
     rgb_init(); 
-    SysTick_Config(SystemCoreClock / 1000);
 
     while (true) { 
+        if (animating)
+        {
+            set_pwm_duty(current_color, current_duty);
+
+            if (fade_up)
+            {
+                current_duty += PWM_STEP;
+                if (current_duty > PWM_TOP_VALUE)
+                {
+                    current_duty = PWM_TOP_VALUE;
+                    fade_up = false;
+                }
+            }
+            else
+            {
+                current_duty -= PWM_STEP;
+                if (current_duty < 0)
+                {
+                    current_duty = 0;
+                    fade_up = true;
+                    current_cycle++;
+                    if (current_cycle >= nums[current_color])
+                    {
+                        current_cycle = 0;
+                        current_color = (current_color + 1) % 3;
+                    }
+                }
+            }
+
+            nrf_delay_ms(FADE_DELAY_MS);
+        }
     } 
 } 
 /** 
