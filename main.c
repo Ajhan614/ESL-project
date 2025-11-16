@@ -2,6 +2,8 @@
 #include <stdbool.h> 
 #include <stdint.h> 
 #include "nrf_delay.h" 
+#include "nrfx_gpiote.h" 
+#include "nrfx_systick.h" 
 #include "nrf_gpio.h" 
 
 #define LED_RED_PIN NRF_GPIO_PIN_MAP(0,8) 
@@ -9,7 +11,81 @@
 #define LED_BLUE_PIN NRF_GPIO_PIN_MAP(0,12)  
 #define USER_BUTTON_PIN NRF_GPIO_PIN_MAP(1,6) 
 
+#define DOUBLE_CLICK_MS 1000
+
+volatile uint32_t systick_ms = 0;
+volatile uint32_t last_click_ms = 0;
+volatile bool first_click = false;
+
+void on_double_click(){
+    int nums[4] = {6,4,5}; 
+    int temp[4] = {6,4,5}; 
+    int i = 0; 
+
+    if(temp[i] - 1 < 0){ 
+        temp[i] = nums[i]; 
+        if((i + 1) > 2) 
+            i = 0; 
+        else
+            i++;
+        } 
+    else{
+        temp[i]--; 
+    } 
+
+    switch (i){ 
+        case 0: 
+        nrf_gpio_pin_clear(LED_RED_PIN); 
+        nrf_delay_ms(500); 
+        nrf_gpio_pin_set(LED_RED_PIN); 
+        break; 
+
+        case 1: 
+        nrf_gpio_pin_clear(LED_GREEN_PIN); 
+        nrf_delay_ms(500); 
+        nrf_gpio_pin_set(LED_GREEN_PIN); 
+        break; 
+                
+        case 2: 
+        nrf_gpio_pin_clear(LED_BLUE_PIN); 
+        nrf_delay_ms(500); 
+        nrf_gpio_pin_set(LED_BLUE_PIN); 
+        break;
+    } 
+            
+    nrf_delay_ms(200); 
+}
+void button_event_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
+{
+    uint32_t now = systick_ms;
+
+    if (!first_click)
+    {
+        first_click = true;
+        last_click_ms = now;
+    }
+    else
+    {
+        if(now - last_click_ms < DOUBLE_CLICK_MS)
+        {
+            first_click = false;
+            on_double_click();
+        }
+        else
+        {
+            last_click_ms = now;  // слишком медленно -> это новый первый клик
+        }
+    }
+}
 void rgb_init(){ 
+    nrfx_gpiote_init();
+    nrfx_gpiote_in_config_t btn_config = NRFX_GPIOTE_CONFIG_IN_SENSE_HITOLO(true);
+    btn_config.pull = NRF_GPIO_PIN_PULLUP;
+
+    nrfx_gpiote_in_init(USER_BUTTON_PIN, &btn_config, button_event_handler);
+
+    nrfx_gpiote_in_event_enable(USER_BUTTON_PIN, true);
+
     nrf_gpio_cfg_output(LED_RED_PIN); 
     nrf_gpio_cfg_output(LED_GREEN_PIN); 
     nrf_gpio_cfg_output(LED_BLUE_PIN); 
@@ -17,52 +93,13 @@ void rgb_init(){
     nrf_gpio_pin_set(LED_RED_PIN); 
     nrf_gpio_pin_set(LED_GREEN_PIN); 
     nrf_gpio_pin_set(LED_BLUE_PIN); 
-
-    nrf_gpio_cfg_input(USER_BUTTON_PIN, NRF_GPIO_PIN_PULLUP); 
 } 
 /** * @brief Function for application main entry. */ 
 int main(void) { 
-
     rgb_init(); 
-
-    int nums[4] = {6,4,5}; 
-    int temp[4] = {6,4,5}; 
-    int i = 0; 
+    SysTick_Config(SystemCoreClock / 1000);
 
     while (true) { 
-        if(nrf_gpio_pin_read(USER_BUTTON_PIN) == 0){ 
-
-            if(temp[i] - 1 < 0){ 
-                temp[i] = nums[i]; 
-                if((i + 1) > 2) 
-                    i = 0; 
-                else
-                    i++;
-            } 
-            else{
-                temp[i]--; 
-            } 
-
-            switch (i){ 
-                case 0: 
-                nrf_gpio_pin_clear(LED_RED_PIN); 
-                nrf_delay_ms(500); 
-                nrf_gpio_pin_set(LED_RED_PIN); 
-                break; 
-
-                case 1: 
-                nrf_gpio_pin_clear(LED_GREEN_PIN); 
-                nrf_delay_ms(500); 
-                nrf_gpio_pin_set(LED_GREEN_PIN); 
-                break; 
-                
-                case 2: 
-                nrf_gpio_pin_clear(LED_BLUE_PIN); 
-                nrf_delay_ms(500); 
-                nrf_gpio_pin_set(LED_BLUE_PIN); 
-                break;
-            } 
-        } 
     } 
 } 
 /** 
