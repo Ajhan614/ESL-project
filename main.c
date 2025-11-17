@@ -16,7 +16,7 @@
 #define PWM_TOP_VALUE 1000     
 #define PWM_STEP      20        
 #define FADE_DELAY_MS 5     
-#define DEBOUNCE_US 5000
+#define DEBOUNCE_US 10000
 
 volatile int current_color = 0;
 volatile int current_duty = 0;
