@@ -16,6 +16,7 @@
 #define PWM_TOP_VALUE 1000     
 #define PWM_STEP      20        
 #define FADE_DELAY_MS 5     
+#define DEBOUNCE_US 5000
 
 volatile int current_color = 0;
 volatile int current_duty = 0;
@@ -24,6 +25,7 @@ volatile bool fade_up = true;
 volatile bool animating = false;
 volatile bool first_click = false;
 nrfx_systick_state_t state;
+nrfx_systick_state_t debounce_state;
 
 const int nums[3] = {6,4,5};
 
@@ -58,6 +60,12 @@ void on_double_click(){
 }
 void button_event_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 {
+    if (!nrfx_systick_test(&debounce_state, DEBOUNCE_US))
+    {
+        return;
+    }
+    nrfx_systick_get(&debounce_state);
+
     if (!first_click)
     {
         nrfx_systick_get(&state);
@@ -123,6 +131,7 @@ void rgb_init(){
 int main(void) { 
     rgb_init(); 
     nrfx_systick_init();
+    nrfx_systick_get(&debounce_state);
 
     while (true) { 
         if (animating)
