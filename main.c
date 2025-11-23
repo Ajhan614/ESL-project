@@ -53,13 +53,13 @@
 #define LED1 NRF_GPIO_PIN_MAP(0,6)
 #define USER_BUTTON_PIN NRF_GPIO_PIN_MAP(1,6) 
 
-#define DOUBLE_CLICK_MS 200000
+#define DOUBLE_CLICK_MS 150000
 #define PWM_TOP_VALUE 1000     
 #define PWM_STEP_MODE_HUE 5        
 #define PWM_STEP_MODE_SATURATION 25
 #define HUE_STEP 0.5
-#define SAT_STEP 1
-#define BRI_STEP 1
+#define SAT_STEP 0.5
+#define BRI_STEP 0.5
 
 #define FADE_DELAY_MS 5     
 #define DEBOUNCE_US 10000
@@ -167,6 +167,7 @@ void button_event_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
             else
                 current_mode++;
         } else {
+            nrfx_systick_get(&state);
             first_click = false;
         }
     }
