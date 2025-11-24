@@ -212,8 +212,8 @@ void rgb_init(){
     nrfx_pwm_simple_playback(
         &pwm_instance, 
         &pwm_seq,
-        1,                       // 1 цикл
-        NRFX_PWM_FLAG_LOOP       // бесконечный повтор (анимация)
+        1,                      
+        NRFX_PWM_FLAG_LOOP       
     );
 } 
 /** * @brief Function for application main entry. */ 
