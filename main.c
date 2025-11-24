@@ -73,7 +73,6 @@ volatile bool fade_up_bri = true;
 volatile bool first_click = false;
 nrfx_systick_state_t state;
 nrfx_systick_state_t debounce_state;
-nrfx_systick_state_t hold_state;
 
 const int nums[3] = {6,4,5};
 
