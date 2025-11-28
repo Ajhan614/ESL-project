@@ -4568,3 +4568,5 @@
 #ifndef RTC2_ENABLED
 #define RTC2_ENABLED 0
 #endif
+
+#define NRFX_NVMC_ENABLED 1
