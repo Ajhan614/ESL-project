@@ -43,40 +43,36 @@
 #include <math.h>
 #include "nrf_delay.h" 
 #include "nrfx_gpiote.h" 
-#include "nrfx_systick.h" 
+
 #include "nrfx_pwm.h" 
 #include "nrfx_nvmc.h"
 #include "nrf_gpio.h" 
+
+#include "nrf_log.h"
+#include "nrf_log_ctrl.h"
+#include "nrf_log_default_backends.h"
+#include "nrf_log_backend_usb.h"
+
+#include "app_usbd.h"
+#include "app_usbd_cdc_acm.h"
+
+#include "nrf_cli.h"
+#include "nrf_cli_cdc_acm.h"
 
 #define LED_RED_PIN NRF_GPIO_PIN_MAP(0,8) 
 #define LED_GREEN_PIN NRF_GPIO_PIN_MAP(1,9)  
 #define LED_BLUE_PIN NRF_GPIO_PIN_MAP(0,12)  
 #define LED1 NRF_GPIO_PIN_MAP(0,6)
-#define USER_BUTTON_PIN NRF_GPIO_PIN_MAP(1,6) 
+//#define USER_BUTTON_PIN NRF_GPIO_PIN_MAP(1,6) 
 
-#define DOUBLE_CLICK_MS 100000
-#define PWM_TOP_VALUE 1000     
-#define PWM_STEP_MODE_HUE 5        
-#define PWM_STEP_MODE_SATURATION 25
-#define HUE_STEP 0.5
-#define SAT_STEP 0.5
-#define BRI_STEP 0.5
-#define MEMORY_ADDR_HUE  0x6e000
-#define MEMORY_ADDR_SAT (MEMORY_ADDR_HUE + 4)
-#define MEMORY_ADDR_BRI (MEMORY_ADDR_HUE + 8)
+#define PWM_TOP_VALUE 1000
 
-#define FADE_DELAY_MS 5     
-#define DEBOUNCE_US 10000
-
-volatile int current_duty = 0;
-volatile float hue, saturation, brightness = 0;
-volatile int current_mode = 0;
-volatile bool fade_up = true;
-volatile bool fade_up_sat = true;
-volatile bool fade_up_bri = true;
-volatile bool first_click = false;
-nrfx_systick_state_t state;
-nrfx_systick_state_t debounce_state;
+NRF_CLI_CDC_ACM_DEF(m_cli_cdc_acm_transport);
+NRF_CLI_DEF(m_cli_cdc_acm,
+            "usb_cli:~$ ",
+            &m_cli_cdc_acm_transport.transport,
+            '\r',
+            4);
 
 static nrfx_pwm_t pwm_instance = NRFX_PWM_INSTANCE(0);
 static nrf_pwm_values_individual_t pwm_values = {
@@ -92,7 +88,7 @@ static nrf_pwm_sequence_t pwm_seq =
     .repeats = 0,
     .end_delay = 0
 };
-void hsv_to_rgb(float h, float s, float v, int* r_out, int* g_out, int* b_out){
+void hsv_to_rgb(float h, float s, float v, uint32_t* r_out, uint32_t* g_out, uint32_t* b_out){
     float H = fmodf(h, 360.0f);
     float S = fminf(100.0f, fmaxf(0.0f, s)) / 100.0f;
     float V = fminf(100.0f, fmaxf(0.0f, v)) / 100.0f;
@@ -122,118 +118,84 @@ void hsv_to_rgb(float h, float s, float v, int* r_out, int* g_out, int* b_out){
     *g_out = G;
     *b_out = B;
 }
-void set_pwm_duty(int duty)
-{
-    int step;
-    int delta;
-    if (current_mode == 1 || current_mode == 2) {
-        step = (current_mode == 1) ? PWM_STEP_MODE_HUE : PWM_STEP_MODE_SATURATION;
-        delta = fade_up ? step : -step;
-        current_duty += delta;
-        if (current_duty > PWM_TOP_VALUE) {
-            current_duty = PWM_TOP_VALUE;
-            fade_up = false;
-        } else if (current_duty < 0) {
-            current_duty = 0;
-            fade_up = true;
-        }
-    }
-    switch(current_mode){
-        case 0:
-            pwm_values.channel_3 = 0;
-            break;
-        case 3:
-            pwm_values.channel_3 = PWM_TOP_VALUE;
-            break;
-        default:
-            if (duty < 0) duty = 0;
-            if (duty > PWM_TOP_VALUE) duty = PWM_TOP_VALUE;
-            pwm_values.channel_3 = duty;  
-            break;
-    }
-}
-void apply_pwm_rgb(void)
-{
-    int r, g, b;
-    hsv_to_rgb(hue, saturation, brightness, &r, &g, &b);
-
-    pwm_values.channel_0 = r;
-    pwm_values.channel_1 = g;
-    pwm_values.channel_2 = b;
-}
-void save_color(void)
-{
-    union {
-        float f;
-        uint32_t u;
-    } conv;
-
-    conv.f = hue;
-    uint32_t hue_val = conv.u;
-    conv.f = saturation;
-    uint32_t sat_val = conv.u;
-    conv.f = brightness;
-    uint32_t bri_val = conv.u;
-
-    bool need_erase = false;
-
-    if (!nrfx_nvmc_word_writable_check(MEMORY_ADDR_HUE, hue_val)) {
-        need_erase = true;
-    }
-    if (!nrfx_nvmc_word_writable_check(MEMORY_ADDR_SAT, sat_val)) {
-        need_erase = true;
-    }
-    if (!nrfx_nvmc_word_writable_check(MEMORY_ADDR_BRI, bri_val)) {
-        need_erase = true;
-    }
-
-    if (need_erase) {
-        nrfx_nvmc_page_erase(MEMORY_ADDR_HUE);
-    }
-
-    nrfx_nvmc_word_write(MEMORY_ADDR_HUE, hue_val);
-    nrfx_nvmc_word_write(MEMORY_ADDR_SAT, sat_val);
-    nrfx_nvmc_word_write(MEMORY_ADDR_BRI, bri_val);
-
-    while (!nrfx_nvmc_write_done_check()) {}  // Ждём завершения
-}
-void button_event_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
-{
-    if (!nrfx_systick_test(&debounce_state, DEBOUNCE_US))
-    {
+void process_rgb(nrf_cli_t const * p_cli, size_t argc, char ** argv){
+    if(argc != 4){
+        nrf_cli_error(p_cli, "Too few arguments : %d", argc);
         return;
     }
-    nrfx_systick_get(&debounce_state);
 
-    if (!first_click) {
-        nrfx_systick_get(&state);
-        first_click = true;
-    } 
-    else 
-    {
-        if (!nrfx_systick_test(&state, DOUBLE_CLICK_MS)) {
-            first_click = false;
-            if(current_mode + 1 > 3)
-                current_mode = 0;
-            else
-                current_mode++;
-            if(current_mode == 1)
-                save_color();
-        } else {
-            nrfx_systick_get(&state);
-            first_click = false;
-        }
+    uint32_t r = atoi(argv[1]);
+    uint32_t g = atoi(argv[2]);
+    uint32_t b = atoi(argv[3]);
+
+    if(r >= 0 && r <= 255 && g >= 0 && g <= 255 && b >= 0 && b <= 255){
+        pwm_values.channel_0 = r; 
+        pwm_values.channel_1 = g; 
+        pwm_values.channel_2 = b;
+
+        nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "RGB set successfully: R=%d, G=%d, B=%d\r\n", r,g,b);
+    }
+    else {
+        nrf_cli_error(p_cli,"RGB values out of range\r\n");
     }
 }
-void rgb_init(){ 
-    nrfx_gpiote_init();
-    nrfx_gpiote_in_config_t btn_config = NRFX_GPIOTE_CONFIG_IN_SENSE_HITOLO(true);
-    btn_config.pull = NRF_GPIO_PIN_PULLUP;
+void process_hsv(nrf_cli_t const * p_cli, size_t argc, char ** argv){
+    if(argc != 4){
+        nrf_cli_error(p_cli, "Too few arguments : %d", argc);
+        return;
+    }
+    uint32_t h = atoi(argv[1]);
+    uint32_t s = atoi(argv[2]);
+    uint32_t v = atoi(argv[3]);
+    uint32_t r_out, g_out, b_out;
+    hsv_to_rgb(h,s,v,&r_out, &g_out, &b_out);
 
-    nrfx_gpiote_in_init(USER_BUTTON_PIN, &btn_config, button_event_handler);
+    if(r_out >= 0 && r_out <= 255 && g_out >= 0 && g_out <= 255 && b_out >= 0 && b_out <= 255){
+        pwm_values.channel_0 = r_out; 
+        pwm_values.channel_1 = g_out; 
+        pwm_values.channel_2 = b_out;
 
-    nrfx_gpiote_in_event_enable(USER_BUTTON_PIN, true);
+        nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "HSV set successfully: H=%d, S=%d, V=%d\r\n", h,s,v);
+    }
+    else {
+        nrf_cli_error(p_cli,"HSV values out of range\r\n");
+    }
+}
+void process_help(nrf_cli_t const * p_cli, size_t argc, char ** argv){
+    nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "Supported commands:\r\n");
+    nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "  RGB <r> <g> <b>   - Set color using RGB values (0-255)\n");
+    nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "  HSV <h> <s> <v>   - Set color using HSV values (H:0-360, S:0-100, V:0-100)\n");
+    nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "  help              - Print information about supported commands\n");
+}
 
+NRF_CLI_CMD_REGISTER(RGB, NULL, NULL, process_rgb);
+NRF_CLI_CMD_REGISTER(HSV, NULL, NULL, process_hsv);
+NRF_CLI_CMD_REGISTER(help, NULL, NULL, process_help);
+
+static void usb_ev_handler(app_usbd_internal_evt_t const * const p_event)
+{
+    switch (p_event->type)
+    {
+        case APP_USBD_EVT_STOPPED:
+            app_usbd_disable();
+            break;
+        case APP_USBD_EVT_POWER_DETECTED:
+            if (!nrf_drv_usbd_is_enabled())
+            {
+                app_usbd_enable();
+            }
+            break;
+        case APP_USBD_EVT_POWER_REMOVED:
+            app_usbd_stop();
+            break;
+        case APP_USBD_EVT_POWER_READY:
+            app_usbd_start();
+            break;
+        default:
+            break;
+    }
+}
+void logs_init(){ 
     nrf_gpio_cfg_output(LED_RED_PIN); 
     nrf_gpio_cfg_output(LED_GREEN_PIN); 
     nrf_gpio_cfg_output(LED_BLUE_PIN); 
@@ -268,76 +230,42 @@ void rgb_init(){
         1,                      
         NRFX_PWM_FLAG_LOOP       
     );
+
+    ret_code_t ret = NRF_LOG_INIT(NULL);
+    APP_ERROR_CHECK(ret);
+
+    NRF_LOG_DEFAULT_BACKENDS_INIT();
+
+    NRF_LOG_INFO("Starting up the project with USB logging");
+
+    ret = nrf_cli_init(&m_cli_cdc_acm, NULL, true, true, NRF_LOG_SEVERITY_INFO);
+    APP_ERROR_CHECK(ret);
+    ret = nrf_cli_start(&m_cli_cdc_acm);
+    APP_ERROR_CHECK(ret);
+
+    static const app_usbd_config_t usbd_config = {
+        .ev_handler = usb_ev_handler,   // исправлено
+    };
+    ret = app_usbd_init(&usbd_config);
+    APP_ERROR_CHECK(ret);
+
+    app_usbd_class_inst_t const * class_cdc_acm = app_usbd_cdc_acm_class_inst_get(&nrf_cli_cdc_acm);
+    ret = app_usbd_class_append(class_cdc_acm);
+    APP_ERROR_CHECK(ret);
+
+    ret = app_usbd_power_events_enable();
+    APP_ERROR_CHECK(ret);
 } 
-void change_pwm(){
-switch (current_mode)
-    {
-        case 2:
-            if(fade_up_sat)
-                saturation += SAT_STEP;
-            else
-                saturation -= SAT_STEP;
-            if (saturation > 100){
-                saturation = 100;
-                fade_up_sat =false;
-            }
-            else if(saturation < 0){
-                saturation = 0;
-                fade_up_sat = true;
-            }
-            break;
 
-        case 3:
-            if(fade_up_bri)
-                brightness += BRI_STEP;
-            else
-                brightness -= BRI_STEP;
-            if (brightness > 100){
-                brightness = 100;
-                fade_up_bri = false;
-            }
-            else if(brightness < 0){
-                brightness = 0;
-                fade_up_bri = true;
-            }
-            break;
-
-        default:
-            break;
-    }
-    apply_pwm_rgb();
+void my_cli_process(){
+    nrf_cli_process(&m_cli_cdc_acm);
 }
 /** * @brief Function for application main entry. */ 
 int main(void) { 
-    rgb_init(); 
-    nrfx_systick_init();
-    nrfx_systick_get(&debounce_state);
+    logs_init(); 
 
-    uint32_t stored_hue = *((uint32_t *)MEMORY_ADDR_HUE);
-    union {
-        float f;
-        uint32_t u;
-    } conv;
-    if (stored_hue == 0xFFFFFFFF) {
-        hue = 18.0f;
-        saturation = 100.0f;
-        brightness = 100.0f;
-    } else {
-        conv.u = stored_hue;
-        hue = conv.f;
-        conv.u = *((uint32_t *)MEMORY_ADDR_SAT);
-        saturation = conv.f;
-        conv.u = *((uint32_t *)MEMORY_ADDR_BRI);
-        brightness = conv.f;
-    }
-
-    apply_pwm_rgb();
-
-    while (true) { 
-        set_pwm_duty(current_duty);
-        if(nrf_gpio_pin_read(USER_BUTTON_PIN) == 0)
-            {change_pwm();}
-        nrf_delay_ms(FADE_DELAY_MS);
+    while (true) {
+        nrf_cli_process(&m_cli_cdc_acm);
     }
 } 
 /** 
