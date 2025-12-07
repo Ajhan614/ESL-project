@@ -133,10 +133,10 @@ void process_rgb(nrf_cli_t const * p_cli, size_t argc, char ** argv){
         pwm_values.channel_1 = g; 
         pwm_values.channel_2 = b;
 
-        nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "RGB set successfully: R=%d, G=%d, B=%d\r\n", r,g,b);
+        nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "RGB set successfully: R=%d, G=%d, B=%d\n", r,g,b);
     }
     else {
-        nrf_cli_error(p_cli,"RGB values out of range\r\n");
+        nrf_cli_error(p_cli,"RGB values out of range\n");
     }
 }
 void process_hsv(nrf_cli_t const * p_cli, size_t argc, char ** argv){
@@ -155,14 +155,13 @@ void process_hsv(nrf_cli_t const * p_cli, size_t argc, char ** argv){
         pwm_values.channel_1 = g_out; 
         pwm_values.channel_2 = b_out;
 
-        nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "HSV set successfully: H=%d, S=%d, V=%d\r\n", h,s,v);
+        nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "HSV set successfully: H=%d, S=%d, V=%d\n", h,s,v);
     }
     else {
-        nrf_cli_error(p_cli,"HSV values out of range\r\n");
+        nrf_cli_error(p_cli,"HSV values out of range\n");
     }
 }
 void process_help(nrf_cli_t const * p_cli, size_t argc, char ** argv){
-    nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "Supported commands:\r\n");
     nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "  RGB <r> <g> <b>   - Set color using RGB values (0-255)\n");
     nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "  HSV <h> <s> <v>   - Set color using HSV values (H:0-360, S:0-100, V:0-100)\n");
     nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "  help              - Print information about supported commands\n");
@@ -236,7 +235,7 @@ void logs_init(){
 
     NRF_LOG_DEFAULT_BACKENDS_INIT();
 
-    NRF_LOG_INFO("Starting up the project with USB logging");
+    NRF_LOG_INFO("Starting up the project with cli interface");
 
     ret = nrf_cli_init(&m_cli_cdc_acm, NULL, true, true, NRF_LOG_SEVERITY_INFO);
     APP_ERROR_CHECK(ret);
@@ -244,7 +243,7 @@ void logs_init(){
     APP_ERROR_CHECK(ret);
 
     static const app_usbd_config_t usbd_config = {
-        .ev_handler = usb_ev_handler,   // исправлено
+        .ev_handler = usb_ev_handler,   
     };
     ret = app_usbd_init(&usbd_config);
     APP_ERROR_CHECK(ret);
@@ -256,10 +255,6 @@ void logs_init(){
     ret = app_usbd_power_events_enable();
     APP_ERROR_CHECK(ret);
 } 
-
-void my_cli_process(){
-    nrf_cli_process(&m_cli_cdc_acm);
-}
 /** * @brief Function for application main entry. */ 
 int main(void) { 
     logs_init(); 
