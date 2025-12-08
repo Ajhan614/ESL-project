@@ -162,9 +162,10 @@ void process_hsv(nrf_cli_t const * p_cli, size_t argc, char ** argv){
     }
 }
 void process_help(nrf_cli_t const * p_cli, size_t argc, char ** argv){
-    nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "  RGB <r> <g> <b>   - Set color using RGB values (0-255)\n");
-    nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "  HSV <h> <s> <v>   - Set color using HSV values (H:0-360, S:0-100, V:0-100)\n");
-    nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "  help              - Print information about supported commands\n");
+    nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "  Supported commands:\n\n");
+    nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "  RGB <r> <g> <b>   - the device sets current color to specified one.(0-255)\n");
+    nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "  HSV <h> <s> <v>   - the same with RGB, but color is specified in HSV.(H:0-360, S:0-100, V:0-100)\n");
+    nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "  help              - print information about supported commands.\n");
 }
 
 NRF_CLI_CMD_REGISTER(RGB, NULL, NULL, process_rgb);
