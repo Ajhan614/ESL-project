@@ -174,7 +174,7 @@ NRF_CLI_CMD_REGISTER(help, NULL, NULL, process_help);
 
 static void usb_ev_handler(app_usbd_internal_evt_t const * const p_event)
 {
-    switch (p_event->type)
+    switch (p_event->type) 
     {
         case APP_USBD_EVT_STOPPED:
             app_usbd_disable();
