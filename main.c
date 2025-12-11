@@ -129,9 +129,9 @@ void process_rgb(nrf_cli_t const * p_cli, size_t argc, char ** argv){
     uint32_t b = atoi(argv[3]);
 
     if(r >= 0 && r <= 255 && g >= 0 && g <= 255 && b >= 0 && b <= 255){
-        pwm_values.channel_0 = r; 
-        pwm_values.channel_1 = g; 
-        pwm_values.channel_2 = b;
+        pwm_values.channel_0 = (r * PWM_TOP_VALUE) / 255;
+        pwm_values.channel_1 = (g * PWM_TOP_VALUE) / 255;
+        pwm_values.channel_2 = (b * PWM_TOP_VALUE) / 255;
 
         nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "RGB set successfully: R=%d, G=%d, B=%d\n", r,g,b);
     }
@@ -151,9 +151,9 @@ void process_hsv(nrf_cli_t const * p_cli, size_t argc, char ** argv){
     hsv_to_rgb(h,s,v,&r_out, &g_out, &b_out);
 
     if(r_out >= 0 && r_out <= 255 && g_out >= 0 && g_out <= 255 && b_out >= 0 && b_out <= 255){
-        pwm_values.channel_0 = r_out; 
-        pwm_values.channel_1 = g_out; 
-        pwm_values.channel_2 = b_out;
+        pwm_values.channel_0 = (r_out * PWM_TOP_VALUE) / 255;
+        pwm_values.channel_1 = (g_out * PWM_TOP_VALUE) / 255;
+        pwm_values.channel_2 = (b_out * PWM_TOP_VALUE) / 255;
 
         nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "HSV set successfully: H=%d, S=%d, V=%d\n", h,s,v);
     }
@@ -195,7 +195,7 @@ static void usb_ev_handler(app_usbd_internal_evt_t const * const p_event)
             break;
     }
 }
-void logs_init(){ 
+void logs_init() { 
     nrf_gpio_cfg_output(LED_RED_PIN); 
     nrf_gpio_cfg_output(LED_GREEN_PIN); 
     nrf_gpio_cfg_output(LED_BLUE_PIN); 
@@ -206,16 +206,13 @@ void logs_init(){
     nrf_gpio_pin_set(LED_BLUE_PIN); 
     nrf_gpio_pin_set(LED1);
 
-    nrfx_pwm_config_t const config =
-    {
-        .output_pins =
-        {
+    nrfx_pwm_config_t const config = {
+        .output_pins = {
             LED_RED_PIN   | NRFX_PWM_PIN_INVERTED,
             LED_GREEN_PIN | NRFX_PWM_PIN_INVERTED,
             LED_BLUE_PIN  | NRFX_PWM_PIN_INVERTED,
             LED1          | NRFX_PWM_PIN_INVERTED
         },
-
         .irq_priority = NRFX_PWM_DEFAULT_CONFIG_IRQ_PRIORITY,
         .base_clock   = NRF_PWM_CLK_1MHz,
         .count_mode   = NRF_PWM_MODE_UP,
@@ -224,23 +221,16 @@ void logs_init(){
         .step_mode    = NRF_PWM_STEP_AUTO
     };
     nrfx_pwm_init(&pwm_instance, &config, NULL);
-    nrfx_pwm_simple_playback(
-        &pwm_instance, 
-        &pwm_seq,
-        1,                      
-        NRFX_PWM_FLAG_LOOP       
-    );
+    nrfx_pwm_simple_playback(&pwm_instance, &pwm_seq, 1, NRFX_PWM_FLAG_LOOP);
 
     ret_code_t ret = NRF_LOG_INIT(NULL);
-    APP_ERROR_CHECK(ret);
+    APP_ERROR_CHECK(ret); 
 
     NRF_LOG_DEFAULT_BACKENDS_INIT();
 
     NRF_LOG_INFO("Starting up the project with cli interface");
 
     ret = nrf_cli_init(&m_cli_cdc_acm, NULL, true, true, NRF_LOG_SEVERITY_INFO);
-    APP_ERROR_CHECK(ret);
-    ret = nrf_cli_start(&m_cli_cdc_acm);
     APP_ERROR_CHECK(ret);
 
     static const app_usbd_config_t usbd_config = {
@@ -249,13 +239,16 @@ void logs_init(){
     ret = app_usbd_init(&usbd_config);
     APP_ERROR_CHECK(ret);
 
-    app_usbd_class_inst_t const * class_cdc_acm = app_usbd_cdc_acm_class_inst_get(&nrf_cli_cdc_acm);
+    app_usbd_class_inst_t const * class_cdc_acm = app_usbd_cdc_acm_class_inst_get(&nrf_cli_cdc_acm); 
     ret = app_usbd_class_append(class_cdc_acm);
     APP_ERROR_CHECK(ret);
 
     ret = app_usbd_power_events_enable();
     APP_ERROR_CHECK(ret);
-} 
+
+    ret = nrf_cli_start(&m_cli_cdc_acm);
+    APP_ERROR_CHECK(ret);
+}
 /** * @brief Function for application main entry. */ 
 int main(void) { 
     logs_init(); 
