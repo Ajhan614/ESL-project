@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdbool.h>
+#include <math.h>
 #include <stddef.h>
 
 #include "nrf.h"
@@ -32,6 +33,7 @@
 #define LED_BLUE_PIN NRF_GPIO_PIN_MAP(0,12)  
 #define LED1 NRF_GPIO_PIN_MAP(0,6)
 #define PWM_TOP_VALUE 1000
+
 static void usbd_user_ev_handler(app_usbd_event_type_t event)
 {
     switch (event)
@@ -75,6 +77,90 @@ static nrf_pwm_sequence_t pwm_seq =
     .repeats = 0,
     .end_delay = 0
 };
+void hsv_to_rgb(float h, float s, float v, uint32_t* r_out, uint32_t* g_out, uint32_t* b_out){
+    float H = fmodf(h, 360.0f);
+    float S = fminf(100.0f, fmaxf(0.0f, s)) / 100.0f;
+    float V = fminf(100.0f, fmaxf(0.0f, v)) / 100.0f;
+
+    float C = V * S;
+    float X = C * (1.0f - fabsf(fmodf(H / 60.0f, 2.0f) - 1.0f));
+    float m = V - C;
+
+    float r = 0, g = 0, b = 0;
+
+    if (H < 60.0f)        { r = C; g = X; b = 0; }
+    else if (H < 120.0f)  { r = X; g = C; b = 0; }
+    else if (H < 180.0f)  { r = 0; g = C; b = X; }
+    else if (H < 240.0f)  { r = 0; g = X; b = C; }
+    else if (H < 300.0f)  { r = X; g = 0; b = C; }
+    else                  { r = C; g = 0; b = X; }
+
+    int R = (int)((r + m) * (float)PWM_TOP_VALUE + 0.5f);
+    int G = (int)((g + m) * (float)PWM_TOP_VALUE + 0.5f);
+    int B = (int)((b + m) * (float)PWM_TOP_VALUE + 0.5f);
+
+    if (R > PWM_TOP_VALUE) R = PWM_TOP_VALUE;
+    if (G > PWM_TOP_VALUE) G = PWM_TOP_VALUE;
+    if (B > PWM_TOP_VALUE) B = PWM_TOP_VALUE;
+
+    *r_out = R;
+    *g_out = G;
+    *b_out = B;
+}
+void process_rgb(nrf_cli_t const * p_cli, size_t argc, char ** argv){
+    if(argc != 4){
+        nrf_cli_error(p_cli, "Too few arguments : %d", argc);
+        return;
+    }
+
+    uint32_t r = atoi(argv[1]);
+    uint32_t g = atoi(argv[2]);
+    uint32_t b = atoi(argv[3]);
+
+    if(r >= 0 && r <= 255 && g >= 0 && g <= 255 && b >= 0 && b <= 255){
+        pwm_values.channel_0 = (r * PWM_TOP_VALUE) / 255 ;
+        pwm_values.channel_1 = (g * PWM_TOP_VALUE) / 255;
+        pwm_values.channel_2 = (b * PWM_TOP_VALUE) / 255;
+
+        nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "RGB set successfully: R=%d, G=%d, B=%d\n", r,g,b);
+    }
+    else {
+        nrf_cli_error(p_cli,"RGB values out of range\n");
+    }
+}
+void process_hsv(nrf_cli_t const * p_cli, size_t argc, char ** argv){
+    if(argc != 4){
+        nrf_cli_error(p_cli, "Too few arguments : %d", argc);
+        return;
+    }
+    uint32_t h = atoi(argv[1]);
+    uint32_t s = atoi(argv[2]);
+    uint32_t v = atoi(argv[3]);
+    uint32_t r_out, g_out, b_out;
+    hsv_to_rgb(h,s,v,&r_out, &g_out, &b_out);
+
+    if(h >= 0 && h <= 360 && s >= 0 && s <= 100 && v >= 0 && v <= 100){
+        pwm_values.channel_0 = (r_out * PWM_TOP_VALUE) / 255;
+        pwm_values.channel_1 = (g_out * PWM_TOP_VALUE) / 255;
+        pwm_values.channel_2 = (b_out * PWM_TOP_VALUE) / 255;
+
+        nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "HSV set successfully: H=%d, S=%d, V=%d\n", h,s,v);
+    }
+    else {
+        nrf_cli_error(p_cli,"HSV values out of range\n");
+    }
+}
+void process_help(nrf_cli_t const * p_cli, size_t argc, char ** argv){
+    nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "  Supported commands:\n\n");
+    nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "  RGB <r> <g> <b>   - the device sets current color to specified one.(0-255)\n");
+    nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "  HSV <h> <s> <v>   - the same with RGB, but color is specified in HSV.(H:0-360, S:0-100, V:0-100)\n");
+    nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "  help              - print information about supported commands.\n");
+}
+
+NRF_CLI_CMD_REGISTER(RGB, NULL, NULL, process_rgb);
+NRF_CLI_CMD_REGISTER(HSV, NULL, NULL, process_hsv);
+NRF_CLI_CMD_REGISTER(help, NULL, NULL, process_help);
+
 static void cli_init(void)
 {
     nrfx_pwm_config_t const config = {
