@@ -5195,29 +5195,9 @@
 
 // </h> 
 //==========================================================
-
-
-
+#define NRFX_PWM_ENABLED 1
+#define NRFX_PWM0_ENABLED 1
+#define NRFX_PWM_DEFAULT_CONFIG_IRQ_PRIORITY 6
 // <<< end of configuration section >>>
 #endif //SDK_CONFIG_H
-// <e> NRFX_PWM_ENABLED - nrfx_pwm - PWM peripheral driver
-//==========================================================
-#ifndef NRFX_PWM_ENABLED
-#define NRFX_PWM_ENABLED 1
-#endif
-// <o> NRFX_PWM_DEFAULT_CONFIG_IRQ_PRIORITY - Interrupt priority
-// <0=> 0 (highest)
-// <1=> 1
-// <2=> 2
-// <3=> 3
-// <4=> 4
-// <5=> 5
-// <6=> 6
-// <7=> 7
-#ifndef NRFX_PWM_DEFAULT_CONFIG_IRQ_PRIORITY
-#define NRFX_PWM_DEFAULT_CONFIG_IRQ_PRIORITY 6
-#endif
-// <q> NRFX_PWM0_ENABLED - Enable PWM0 instance
-#ifndef NRFX_PWM0_ENABLED
-#define NRFX_PWM0_ENABLED 1
-#endif
+

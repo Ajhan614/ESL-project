@@ -4,9 +4,9 @@ OUTPUT_DIRECTORY := _build
 DFU_PACKAGE      := $(OUTPUT_DIRECTORY)/nrf52840_xxaa.dfu
 DFU_PORT         ?= /dev/ttyACM0
 
-
-SDK_ROOT ?= /home/user/devel/esl-nsdk
+SDK_ROOT := /home/user/devel/esl-nsdk
 PROJ_DIR := .
+
 $(OUTPUT_DIRECTORY)/nrf52840_xxaa.out: \
   LINKER_SCRIPT  := blinky_gcc_nrf52.ld
 
@@ -70,13 +70,14 @@ SRC_FILES += \
   $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_clock.c \
   $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_gpiote.c \
   $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_power.c \
+  $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_pwm.c \
   $(SDK_ROOT)/modules/nrfx/drivers/src/prs/nrfx_prs.c \
   $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_systick.c \
   $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_uart.c \
-  $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_pwm.c \
   $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_uarte.c \
   $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_usbd.c \
   $(SDK_ROOT)/components/libraries/bsp/bsp.c \
+  $(PROJ_DIR)/demo_cli_cmds.c \
   $(PROJ_DIR)/main.c \
   $(SDK_ROOT)/external/segger_rtt/SEGGER_RTT.c \
   $(SDK_ROOT)/external/segger_rtt/SEGGER_RTT_Syscalls_GCC.c \
@@ -210,6 +211,8 @@ default: nrf52840_xxaa
 help:
 	@echo following targets are available:
 	@echo		nrf52840_xxaa
+	@echo		flash_mbr
+	@echo		sdk_config - starting external tool for editing sdk_config.h
 	@echo		flash      - flashing binary
 
 TEMPLATE_PATH := $(SDK_ROOT)/components/toolchain/gcc
@@ -219,19 +222,24 @@ include $(TEMPLATE_PATH)/Makefile.common
 
 $(foreach target, $(TARGETS), $(call define_target, $(target)))
 
-.PHONY: dfu
+.PHONY: flash flash_mbr erase
 
-dfu_package: $(DFU_PACKAGE)
+# Flash the program
+flash: default
+	@echo Flashing: $(OUTPUT_DIRECTORY)/nrf52840_xxaa.hex
+	nrfjprog -f nrf52 --program $(OUTPUT_DIRECTORY)/nrf52840_xxaa.hex --sectorerase
+	nrfjprog -f nrf52 --reset
 
-$(DFU_PACKAGE): $(OUTPUT_DIRECTORY)/nrf52840_xxaa.hex
-	@echo Creating DFU package: $(DFU_PACKAGE)
-	nrfutil pkg generate \
-	   --hw-version 52 \
-	   --application-version 1 \
-     --sd-req 0x00 \
-	   --application $< \
-	   $@
+# Flash softdevice
+flash_mbr:
+	@echo Flashing: mbr_nrf52_2.4.1_mbr.hex
+	nrfjprog -f nrf52 --program $(SDK_ROOT)/components/softdevice/mbr/hex/mbr_nrf52_2.4.1_mbr.hex --sectorerase
+	nrfjprog -f nrf52 --reset
 
-dfu: $(DFU_PACKAGE)
-	@echo Performing DFU with generated package
-	nrfutil -v -v dfu usb-serial -pkg $< -p $(DFU_PORT) -b 115200
+erase:
+	nrfjprog -f nrf52 --eraseall
+
+SDK_CONFIG_FILE := ./config/sdk_config.h
+CMSIS_CONFIG_TOOL := $(SDK_ROOT)/external_tools/cmsisconfig/CMSIS_Configuration_Wizard.jar
+sdk_config:
+	java -jar $(CMSIS_CONFIG_TOOL) $(SDK_CONFIG_FILE)
