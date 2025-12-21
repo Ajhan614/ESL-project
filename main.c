@@ -11,12 +11,10 @@
 #include "nrfx_pwm.h"
 #include "nrfx_nvmc.h"
 
-#include "app_timer.h"
 #include "app_error.h"
 #include "app_util.h"
 
 #include "nrf_cli.h"
-#include "nrf_cli_rtt.h"
 #include "nrf_cli_types.h"
 
 #include "nrf_log.h"
@@ -159,6 +157,8 @@ void process_rgb(nrf_cli_t const * p_cli, size_t argc, char ** argv){
         current_app_data.current_color.b = b;
         update_leds();
 
+        save_to_flash();
+
         nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "RGB set successfully: R=%d, G=%d, B=%d\n", r,g,b);
     }
     else {
@@ -181,6 +181,8 @@ void process_hsv(nrf_cli_t const * p_cli, size_t argc, char ** argv){
         current_app_data.current_color.g = g_out;
         current_app_data.current_color.b = b_out;
         update_leds();
+
+        save_to_flash();
 
         nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "HSV set successfully: H=%d, S=%d, V=%d\n", h,s,v);
     }
@@ -332,7 +334,7 @@ void del_color(nrf_cli_t const * p_cli, size_t argc, char ** argv){
         return;
     }
     
-    if(current_app_data.current_num_of_colors - 1 < 0){
+    if(current_app_data.current_num_of_colors == 0){
         nrf_cli_error(p_cli, "Cannot delete color. Storage is empty\n");
         return;
     }
