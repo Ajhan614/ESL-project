@@ -2,12 +2,14 @@
 #include <stdbool.h>
 #include <math.h>
 #include <stddef.h>
+#include <string.h>
 
 #include "nrf.h"
 #include "nrf_drv_clock.h"
 #include "nrf_gpio.h"
 #include "nrf_delay.h"
 #include "nrfx_pwm.h"
+#include "nrfx_nvmc.h"
 
 #include "app_timer.h"
 #include "app_error.h"
@@ -34,6 +36,33 @@
 #define LED1 NRF_GPIO_PIN_MAP(0,6)
 #define PWM_TOP_VALUE 1000
 
+#define MAX_NUM_OF_COLORS 10
+#define MAX_LEN_OF_NAME 32
+
+#define FLASH_SAVE_ADDR             0x7F000
+
+typedef struct{
+    uint32_t r,g,b;
+}rgb_color;
+
+typedef struct{
+    char name[MAX_LEN_OF_NAME];
+    rgb_color color_value;
+}saved_color;
+
+typedef struct{
+    rgb_color current_color;
+    uint32_t current_num_of_colors;
+    saved_color list_of_colors[MAX_NUM_OF_COLORS];
+}saved_app_data;
+
+static saved_app_data current_app_data;
+
+void save_to_flash(){
+    nrfx_nvmc_page_erase(FLASH_SAVE_ADDR);
+    nrfx_nvmc_words_write(FLASH_SAVE_ADDR, (uint32_t *)&current_app_data, sizeof(current_app_data) / 4);
+    while (!nrfx_nvmc_write_done_check());
+}
 static void usbd_user_ev_handler(app_usbd_event_type_t event)
 {
     switch (event)
@@ -77,6 +106,12 @@ static nrf_pwm_sequence_t pwm_seq =
     .repeats = 0,
     .end_delay = 0
 };
+
+void update_leds(){
+    pwm_values.channel_0 = (current_app_data.current_color.r * PWM_TOP_VALUE) / 255;
+    pwm_values.channel_1 = (current_app_data.current_color.g * PWM_TOP_VALUE) / 255;
+    pwm_values.channel_2 = (current_app_data.current_color.b * PWM_TOP_VALUE) / 255;
+}
 void hsv_to_rgb(float h, float s, float v, uint32_t* r_out, uint32_t* g_out, uint32_t* b_out){
     float H = fmodf(h, 360.0f);
     float S = fminf(100.0f, fmaxf(0.0f, s)) / 100.0f;
@@ -107,9 +142,10 @@ void hsv_to_rgb(float h, float s, float v, uint32_t* r_out, uint32_t* g_out, uin
     *g_out = G;
     *b_out = B;
 }
+
 void process_rgb(nrf_cli_t const * p_cli, size_t argc, char ** argv){
     if(argc != 4){
-        nrf_cli_error(p_cli, "Too few arguments : %d", argc);
+        nrf_cli_error(p_cli, "Incorrect num of arguments  : %d\n", argc);
         return;
     }
 
@@ -118,9 +154,10 @@ void process_rgb(nrf_cli_t const * p_cli, size_t argc, char ** argv){
     uint32_t b = atoi(argv[3]);
 
     if(r >= 0 && r <= 255 && g >= 0 && g <= 255 && b >= 0 && b <= 255){
-        pwm_values.channel_0 = (r * PWM_TOP_VALUE) / 255 ;
-        pwm_values.channel_1 = (g * PWM_TOP_VALUE) / 255;
-        pwm_values.channel_2 = (b * PWM_TOP_VALUE) / 255;
+        current_app_data.current_color.r = r;
+        current_app_data.current_color.g = g;
+        current_app_data.current_color.b = b;
+        update_leds();
 
         nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "RGB set successfully: R=%d, G=%d, B=%d\n", r,g,b);
     }
@@ -130,7 +167,7 @@ void process_rgb(nrf_cli_t const * p_cli, size_t argc, char ** argv){
 }
 void process_hsv(nrf_cli_t const * p_cli, size_t argc, char ** argv){
     if(argc != 4){
-        nrf_cli_error(p_cli, "Too few arguments : %d", argc);
+        nrf_cli_error(p_cli, "Incorrect num of arguments : %d\n", argc);
         return;
     }
     uint32_t h = atoi(argv[1]);
@@ -140,9 +177,10 @@ void process_hsv(nrf_cli_t const * p_cli, size_t argc, char ** argv){
     hsv_to_rgb(h,s,v,&r_out, &g_out, &b_out);
 
     if(h >= 0 && h <= 360 && s >= 0 && s <= 100 && v >= 0 && v <= 100){
-        pwm_values.channel_0 = (r_out * PWM_TOP_VALUE) / 255;
-        pwm_values.channel_1 = (g_out * PWM_TOP_VALUE) / 255;
-        pwm_values.channel_2 = (b_out * PWM_TOP_VALUE) / 255;
+        current_app_data.current_color.r = r_out;
+        current_app_data.current_color.g = g_out;
+        current_app_data.current_color.b = b_out;
+        update_leds();
 
         nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "HSV set successfully: H=%d, S=%d, V=%d\n", h,s,v);
     }
@@ -154,9 +192,219 @@ void process_help(nrf_cli_t const * p_cli, size_t argc, char ** argv){
     nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "  Supported commands:\n\n");
     nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "  RGB <r> <g> <b>   - the device sets current color to specified one.(0-255)\n");
     nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "  HSV <h> <s> <v>   - the same with RGB, but color is specified in HSV.(H:0-360, S:0-100, V:0-100)\n");
-    nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "  help              - print information about supported commands.\n");
+    nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "  add_rgb_color <r> <g> <b> <color_name>    - add rgb color with name <color_name> to flash.\n");
+    nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "  add_hsv_color <h> <s> <v> <color_name>    - add hsv color with name <color_name> to flash.\n");
+    nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "  add_current_color <color_name>    - add current color with name <color_name> to flash.\n");
+    nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "  del_color <color_name>    - delete color with name <color_name> from flash.\n");
+    nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "  apply_color <color_name>    - apply color with name <color_name>.\n");
+    nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "  list_colors    - list saved colors.\n");
+    nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "  help  - print information about supported commands.\n");
+}
+void add_rgb_color(nrf_cli_t const * p_cli, size_t argc, char ** argv){
+    if(argc != 5){
+        nrf_cli_error(p_cli, "Incorrect num of arguments : %d\n", argc);
+        return;
+    }
+    
+    if(current_app_data.current_num_of_colors + 1 > MAX_NUM_OF_COLORS){
+        nrf_cli_error(p_cli, "Cannot add new color. Storage is full\n");
+        return;
+    }
+    uint32_t r = atoi(argv[1]);
+    uint32_t g = atoi(argv[2]);
+    uint32_t b = atoi(argv[3]);
+
+    if(r >= 0 && r <= 255 && g >= 0 && g <= 255 && b >= 0 && b <= 255){
+        for(int i = 0; i < current_app_data.current_num_of_colors; i++){
+            if(strcmp(current_app_data.list_of_colors[i].name,argv[4]) == 0){
+                nrf_cli_error(p_cli,"Name is taken\n");
+                return;
+            }
+            if(current_app_data.list_of_colors[i].color_value.r == r
+            && current_app_data.list_of_colors[i].color_value.g == g
+            && current_app_data.list_of_colors[i].color_value.b == b){
+                nrf_cli_error(p_cli,"Color already exists with name : %s\n",current_app_data.list_of_colors[i].name);
+                return;
+            }
+        }
+        uint32_t count = current_app_data.current_num_of_colors++;
+        strncpy(current_app_data.list_of_colors[count].name, argv[4], MAX_LEN_OF_NAME - 1);
+        current_app_data.list_of_colors[count].name[MAX_LEN_OF_NAME - 1] = '\0';
+
+        current_app_data.list_of_colors[count].color_value.r = r;
+        current_app_data.list_of_colors[count].color_value.g = g;
+        current_app_data.list_of_colors[count].color_value.b = b;
+
+        save_to_flash();
+
+        nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "Color '%s' saved.\n", argv[4]);
+    }
+    else {
+        nrf_cli_error(p_cli,"RGB values out of range\n");
+    }
+}
+void add_hsv_color(nrf_cli_t const * p_cli, size_t argc, char ** argv){
+    if(argc != 5){
+        nrf_cli_error(p_cli, "Incorrect num of arguments : %d\n", argc);
+        return;
+    }
+    
+    if(current_app_data.current_num_of_colors + 1 > MAX_NUM_OF_COLORS){
+        nrf_cli_error(p_cli, "Cannot add new color. Storage is full\n");
+        return;
+    }
+    uint32_t h = atoi(argv[1]);
+    uint32_t s = atoi(argv[2]);
+    uint32_t v = atoi(argv[3]);
+
+    uint32_t r, g, b;
+    if(h >= 0 && h <= 360 && s >= 0 && s <= 100 && v >= 0 && v <= 100){
+        hsv_to_rgb(h,s,v,&r,&g,&b);
+        for(int i = 0; i < current_app_data.current_num_of_colors; i++){
+            if(strcmp(current_app_data.list_of_colors[i].name,argv[4]) == 0){
+                nrf_cli_error(p_cli,"Name is taken\n");
+                return;
+            }
+            if(current_app_data.list_of_colors[i].color_value.r == r
+            && current_app_data.list_of_colors[i].color_value.g == g
+            && current_app_data.list_of_colors[i].color_value.b == b){
+                nrf_cli_error(p_cli,"Color already exists with name : %s\n",current_app_data.list_of_colors[i].name);
+                return;
+            }
+        }
+        uint32_t count = current_app_data.current_num_of_colors++;
+        strncpy(current_app_data.list_of_colors[count].name, argv[4], MAX_LEN_OF_NAME - 1);
+        current_app_data.list_of_colors[count].name[MAX_LEN_OF_NAME - 1] = '\0';
+
+        current_app_data.list_of_colors[count].color_value.r = r;
+        current_app_data.list_of_colors[count].color_value.g = g;
+        current_app_data.list_of_colors[count].color_value.b = b;
+
+        save_to_flash();
+
+        nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "Color '%s' saved.\n", argv[4]);
+    }
+    else {
+        nrf_cli_error(p_cli,"HSV values out of range\n");
+    }
+}
+void add_current_color(nrf_cli_t const * p_cli, size_t argc, char ** argv){
+    if(argc != 2){
+        nrf_cli_error(p_cli, "Incorrect num of arguments : %d\n", argc);
+        return;
+    }
+    
+    if(current_app_data.current_num_of_colors + 1 > MAX_NUM_OF_COLORS){
+        nrf_cli_error(p_cli, "Cannot add new color. Storage is full\n");
+        return;
+    }
+    uint32_t r = current_app_data.current_color.r;
+    uint32_t g = current_app_data.current_color.g;
+    uint32_t b = current_app_data.current_color.b;
+
+    for(int i = 0; i < current_app_data.current_num_of_colors; i++){
+        if(strcmp(current_app_data.list_of_colors[i].name,argv[1]) == 0){
+            nrf_cli_error(p_cli,"Name is taken\n");
+            return;
+        }
+        if(current_app_data.list_of_colors[i].color_value.r == r
+        && current_app_data.list_of_colors[i].color_value.g == g
+        && current_app_data.list_of_colors[i].color_value.b == b){
+            nrf_cli_error(p_cli,"Color already exists with name : %s\n",current_app_data.list_of_colors[i].name);
+            return;
+        }
+    }
+    uint32_t count = current_app_data.current_num_of_colors++;
+    strncpy(current_app_data.list_of_colors[count].name, argv[1], MAX_LEN_OF_NAME - 1);
+    current_app_data.list_of_colors[count].name[MAX_LEN_OF_NAME - 1] = '\0';
+
+    current_app_data.list_of_colors[count].color_value.r = r;
+    current_app_data.list_of_colors[count].color_value.g = g;
+    current_app_data.list_of_colors[count].color_value.b = b;
+
+    save_to_flash();
+
+    nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "Color '%s' saved.\n", argv[1]);
+}
+void del_color(nrf_cli_t const * p_cli, size_t argc, char ** argv){
+    if(argc != 2){
+        nrf_cli_error(p_cli, "Incorrect num of arguments : %d\n", argc);
+        return;
+    }
+    
+    if(current_app_data.current_num_of_colors - 1 < 0){
+        nrf_cli_error(p_cli, "Cannot delete color. Storage is empty\n");
+        return;
+    }
+    
+    bool color_found = false;
+    for(int i = 0; i < current_app_data.current_num_of_colors; i++){
+        if(strcmp(current_app_data.list_of_colors[i].name,argv[1]) == 0){
+            color_found = true;
+            for(int j = i; j < current_app_data.current_num_of_colors - 1; j++){
+                current_app_data.list_of_colors[j] = current_app_data.list_of_colors[j+1];
+            }
+            current_app_data.current_num_of_colors--;
+            save_to_flash();
+            break;
+        }
+    }
+    if(color_found){
+        nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "Color '%s' deleted.\n", argv[1]);
+    }
+    else{
+        nrf_cli_error(p_cli, "Cannot find color %s to delete.\n", argv[1]);
+    }
+}
+void apply_color(nrf_cli_t const * p_cli, size_t argc, char ** argv){
+    if(argc != 2){
+        nrf_cli_error(p_cli, "Incorrect num of arguments : %d\n", argc);
+        return;
+    }
+    bool color_found = false;
+    for(int i = 0; i < current_app_data.current_num_of_colors; i++){
+        if(strcmp(current_app_data.list_of_colors[i].name,argv[1]) == 0){
+            color_found = true;
+            uint32_t r = current_app_data.list_of_colors[i].color_value.r;
+            uint32_t g = current_app_data.list_of_colors[i].color_value.g;
+            uint32_t b = current_app_data.list_of_colors[i].color_value.b;
+
+            current_app_data.current_color.r = r;
+            current_app_data.current_color.g = g;
+            current_app_data.current_color.b = b;
+            update_leds();
+
+            save_to_flash();
+            break;
+        }
+    }
+    if(color_found){
+        nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "Color '%s' applied.\n", argv[1]);
+    }
+    else{
+        nrf_cli_error(p_cli, "Cannot find color %s to apply\n", argv[1]);
+    }
+}
+void list_colors(nrf_cli_t const * p_cli, size_t argc, char ** argv){
+    uint32_t n = current_app_data.current_num_of_colors;
+
+    nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "Current num of colors : %d.\n", n);
+    for(int i = 0; i < n; i++){
+        nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "Name : <%s>,  RGB value : <%d> <%d> <%d>\n", 
+            current_app_data.list_of_colors[i].name,
+            current_app_data.list_of_colors[i].color_value.r,
+            current_app_data.list_of_colors[i].color_value.g,
+            current_app_data.list_of_colors[i].color_value.b
+        );
+    }
 }
 
+NRF_CLI_CMD_REGISTER(add_rgb_color, NULL, NULL, add_rgb_color);
+NRF_CLI_CMD_REGISTER(add_hsv_color, NULL, NULL, add_hsv_color);
+NRF_CLI_CMD_REGISTER(add_current_color, NULL, NULL, add_current_color);
+NRF_CLI_CMD_REGISTER(del_color, NULL, NULL, del_color);
+NRF_CLI_CMD_REGISTER(apply_color, NULL, NULL, apply_color);
+NRF_CLI_CMD_REGISTER(list_colors, NULL, NULL, list_colors);
 NRF_CLI_CMD_REGISTER(RGB, NULL, NULL, process_rgb);
 NRF_CLI_CMD_REGISTER(HSV, NULL, NULL, process_hsv);
 NRF_CLI_CMD_REGISTER(help, NULL, NULL, process_help);
@@ -219,6 +467,21 @@ int main(void)
     nrf_drv_clock_lfclk_request(NULL);
 
     cli_init();
+    
+    saved_app_data* p_flash = (saved_app_data*)FLASH_SAVE_ADDR;
+    if (p_flash->current_num_of_colors > MAX_NUM_OF_COLORS) {
+        memset(&current_app_data, 0, sizeof(current_app_data));
+        current_app_data.current_color.r = 0;
+        current_app_data.current_color.g = 0;
+        current_app_data.current_color.b = 0;
+        current_app_data.current_num_of_colors = 0;
+        
+        save_to_flash();
+    }
+    else{
+        memcpy(&current_app_data, p_flash, sizeof(saved_app_data));
+    }
+    update_leds();
 
     while (true)
     {

@@ -1438,6 +1438,10 @@
 // <1=> NRF_FSTORAGE_NVMC 
 // <2=> NRF_FSTORAGE_SD 
 
+#ifndef NRFX_NVMC_ENABLED
+#define NRFX_NVMC_ENABLED 1
+#endif
+
 #ifndef FDS_BACKEND
 #define FDS_BACKEND 1
 #endif
