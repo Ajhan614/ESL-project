@@ -128,13 +128,17 @@ void hsv_to_rgb(float h, float s, float v, uint32_t* r_out, uint32_t* g_out, uin
     else if (H < 300.0f)  { r = X; g = 0; b = C; }
     else                  { r = C; g = 0; b = X; }
 
-    int R = (int)((r + m) * (float)PWM_TOP_VALUE + 0.5f);
-    int G = (int)((g + m) * (float)PWM_TOP_VALUE + 0.5f);
-    int B = (int)((b + m) * (float)PWM_TOP_VALUE + 0.5f);
+    int R = (int)((r + m) * (float)255.0f + 0.5f);
+    int G = (int)((g + m) * (float)255.0f + 0.5f);
+    int B = (int)((b + m) * (float)255.0f + 0.5f);
 
-    if (R > PWM_TOP_VALUE) R = PWM_TOP_VALUE;
-    if (G > PWM_TOP_VALUE) G = PWM_TOP_VALUE;
-    if (B > PWM_TOP_VALUE) B = PWM_TOP_VALUE;
+    if (R > 255) R = 255;
+    if (G > 255) G = 255;
+    if (B > 255) B = 255;
+
+    if (R < 0) R = 0;
+    if (G < 0) G = 0;
+    if (B < 0) B = 0;
 
     *r_out = R;
     *g_out = G;
