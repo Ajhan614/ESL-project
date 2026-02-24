@@ -1,2 +1,2 @@
-#Blinky PCA10059
+#BLE PCA10059
 
