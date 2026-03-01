@@ -1,503 +1,572 @@
-#include <stdio.h>
+/**
+ * Copyright (c) 2014 - 2021, Nordic Semiconductor ASA
+ *
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without modification,
+ * are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form, except as embedded into a Nordic
+ *    Semiconductor ASA integrated circuit in a product or a software update for
+ *    such product, must reproduce the above copyright notice, this list of
+ *    conditions and the following disclaimer in the documentation and/or other
+ *    materials provided with the distribution.
+ *
+ * 3. Neither the name of Nordic Semiconductor ASA nor the names of its
+ *    contributors may be used to endorse or promote products derived from this
+ *    software without specific prior written permission.
+ *
+ * 4. This software, with or without modification, must only be used with a
+ *    Nordic Semiconductor ASA integrated circuit.
+ *
+ * 5. Any software provided in binary form under this license must not be reverse
+ *    engineered, decompiled, modified and/or disassembled.
+ *
+ * THIS SOFTWARE IS PROVIDED BY NORDIC SEMICONDUCTOR ASA "AS IS" AND ANY EXPRESS
+ * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL NORDIC SEMICONDUCTOR ASA OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+ * GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+ * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ */
+/** @file
+ *
+ * @defgroup estc_gatt main.c
+ * @{
+ * @ingroup estc_templates
+ * @brief ESTC-GATT project file.
+ *
+ * This file contains a template for creating a new BLE application with GATT services. It has
+ * the code necessary to advertise, get a connection, restart advertising on disconnect.
+ */
+
 #include <stdbool.h>
-#include <math.h>
-#include <stddef.h>
+#include <stdint.h>
 #include <string.h>
 
+#include "nordic_common.h"
 #include "nrf.h"
-#include "nrf_drv_clock.h"
-#include "nrf_gpio.h"
-#include "nrf_delay.h"
-#include "nrfx_pwm.h"
-#include "nrfx_nvmc.h"
-
 #include "app_error.h"
-#include "app_util.h"
-
-#include "nrf_cli.h"
-#include "nrf_cli_types.h"
+#include "ble.h"
+#include "ble_hci.h"
+#include "ble_srv_common.h"
+#include "ble_advdata.h"
+#include "ble_advertising.h"
+#include "ble_conn_params.h"
+#include "nrf_sdh.h"
+#include "nrf_sdh_soc.h"
+#include "nrf_sdh_ble.h"
+#include "app_timer.h"
+#include "fds.h"
+#include "peer_manager.h"
+#include "peer_manager_handler.h"
+#include "bsp_btn_ble.h"
+#include "sensorsim.h"
+#include "ble_conn_state.h"
+#include "nrf_ble_gatt.h"
+#include "nrf_ble_qwr.h"
+#include "nrf_pwr_mgmt.h"
 
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
+#include "nrf_log_backend_usb.h"
 
-#include "nrf_cli_cdc_acm.h"
-#include "nrf_drv_usbd.h"
-#include "app_usbd_core.h"
-#include "app_usbd.h"
-#include "app_usbd_string_desc.h"
-#include "app_usbd_cdc_acm.h"
+#include "estc_service.h"
 
-#define LED_RED_PIN NRF_GPIO_PIN_MAP(0,8) 
-#define LED_GREEN_PIN NRF_GPIO_PIN_MAP(1,9)  
-#define LED_BLUE_PIN NRF_GPIO_PIN_MAP(0,12)  
-#define LED1 NRF_GPIO_PIN_MAP(0,6)
-#define PWM_TOP_VALUE 1000
+#define DEVICE_NAME                     "Kim Darya"                              /**< Name of device. Will be included in the advertising data. */
+#define MANUFACTURER_NAME               "NordicSemiconductor"                   /**< Manufacturer. Will be passed to Device Information Service. */
+#define APP_ADV_INTERVAL                300                                     /**< The advertising interval (in units of 0.625 ms. This value corresponds to 187.5 ms). */
 
-#define MAX_NUM_OF_COLORS 10
-#define MAX_LEN_OF_NAME 32
+#define APP_ADV_DURATION                18000                                   /**< The advertising duration (180 seconds) in units of 10 milliseconds. */
+#define APP_BLE_OBSERVER_PRIO           3                                       /**< Application's BLE observer priority. You shouldn't need to modify this value. */
+#define APP_BLE_CONN_CFG_TAG            1                                       /**< A tag identifying the SoftDevice BLE configuration. */
 
-#define FLASH_SAVE_ADDR             0x7F000
+#define MIN_CONN_INTERVAL               MSEC_TO_UNITS(100, UNIT_1_25_MS)        /**< Minimum acceptable connection interval (0.1 seconds). */
+#define MAX_CONN_INTERVAL               MSEC_TO_UNITS(200, UNIT_1_25_MS)        /**< Maximum acceptable connection interval (0.2 second). */
+#define SLAVE_LATENCY                   0                                       /**< Slave latency. */
+#define CONN_SUP_TIMEOUT                MSEC_TO_UNITS(4000, UNIT_10_MS)         /**< Connection supervisory timeout (4 seconds). */
 
-typedef struct{
-    uint32_t r,g,b;
-}rgb_color;
+#define FIRST_CONN_PARAMS_UPDATE_DELAY  APP_TIMER_TICKS(5000)                   /**< Time from initiating event (connect or start of notification) to first time sd_ble_gap_conn_param_update is called (5 seconds). */
+#define NEXT_CONN_PARAMS_UPDATE_DELAY   APP_TIMER_TICKS(30000)                  /**< Time between each call to sd_ble_gap_conn_param_update after the first call (30 seconds). */
+#define MAX_CONN_PARAMS_UPDATE_COUNT    3                                       /**< Number of attempts before giving up the connection parameter negotiation. */
 
-typedef struct{
-    char name[MAX_LEN_OF_NAME];
-    rgb_color color_value;
-}saved_color;
+#define DEAD_BEEF                       0xDEADBEEF                              /**< Value used as error code on stack dump, can be used to identify stack location on stack unwind. */
 
-typedef struct{
-    rgb_color current_color;
-    uint32_t current_num_of_colors;
-    saved_color list_of_colors[MAX_NUM_OF_COLORS];
-}saved_app_data;
+NRF_BLE_GATT_DEF(m_gatt);                                                       /**< GATT module instance. */
+NRF_BLE_QWR_DEF(m_qwr);                                                         /**< Context for the Queued Write module.*/
+BLE_ADVERTISING_DEF(m_advertising);                                             /**< Advertising module instance. */
 
-static saved_app_data current_app_data;
+static uint16_t m_conn_handle = BLE_CONN_HANDLE_INVALID;                        /**< Handle of the current connection. */
 
-void save_to_flash(){
-    nrfx_nvmc_page_erase(FLASH_SAVE_ADDR);
-    nrfx_nvmc_words_write(FLASH_SAVE_ADDR, (uint32_t *)&current_app_data, sizeof(current_app_data) / 4);
-    while (!nrfx_nvmc_write_done_check());
-}
-static void usbd_user_ev_handler(app_usbd_event_type_t event)
+static ble_uuid_t m_adv_uuids[] =                                               /**< Universally unique service identifiers. */
 {
-    switch (event)
+    {BLE_UUID_DEVICE_INFORMATION_SERVICE, BLE_UUID_TYPE_BLE},
+    // TODO: 5. Add ESTC service UUID to the table
+};
+
+ble_estc_service_t m_estc_service; /**< ESTC example BLE service */
+
+static void advertising_start(void);
+
+
+/**@brief Callback function for asserts in the SoftDevice.
+ *
+ * @details This function will be called in case of an assert in the SoftDevice.
+ *
+ * @warning This handler is an example only and does not fit a final product. You need to analyze
+ *          how your product is supposed to react in case of Assert.
+ * @warning On assert from the SoftDevice, the system can only recover on reset.
+ *
+ * @param[in] line_num   Line number of the failing ASSERT call.
+ * @param[in] file_name  File name of the failing ASSERT call.
+ */
+void assert_nrf_callback(uint16_t line_num, const uint8_t * p_file_name)
+{
+    app_error_handler(DEAD_BEEF, line_num, p_file_name);
+}
+
+/**@brief Function for the Timer initialization.
+ *
+ * @details Initializes the timer module. This creates and starts application timers.
+ */
+static void timers_init(void)
+{
+    // Initialize timer module.
+    ret_code_t err_code = app_timer_init();
+    APP_ERROR_CHECK(err_code);
+}
+
+
+/**@brief Function for the GAP initialization.
+ *
+ * @details This function sets up all the necessary GAP (Generic Access Profile) parameters of the
+ *          device including the device name, appearance, and the preferred connection parameters.
+ */
+static void gap_params_init(void)
+{
+    ret_code_t              err_code;
+    ble_gap_conn_params_t   gap_conn_params;
+    ble_gap_conn_sec_mode_t sec_mode;
+
+    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&sec_mode);
+
+    err_code = sd_ble_gap_device_name_set(&sec_mode,
+                                          (const uint8_t *)DEVICE_NAME,
+                                          strlen(DEVICE_NAME));
+    APP_ERROR_CHECK(err_code);
+
+	err_code = sd_ble_gap_appearance_set(BLE_APPEARANCE_UNKNOWN);
+	APP_ERROR_CHECK(err_code);
+
+    memset(&gap_conn_params, 0, sizeof(gap_conn_params));
+
+    gap_conn_params.min_conn_interval = MIN_CONN_INTERVAL;
+    gap_conn_params.max_conn_interval = MAX_CONN_INTERVAL;
+    gap_conn_params.slave_latency     = SLAVE_LATENCY;
+    gap_conn_params.conn_sup_timeout  = CONN_SUP_TIMEOUT;
+
+    err_code = sd_ble_gap_ppcp_set(&gap_conn_params);
+    APP_ERROR_CHECK(err_code);
+}
+
+
+/**@brief Function for initializing the GATT module.
+ */
+static void gatt_init(void)
+{
+    ret_code_t err_code = nrf_ble_gatt_init(&m_gatt, NULL);
+    APP_ERROR_CHECK(err_code);
+}
+
+
+/**@brief Function for handling Queued Write Module errors.
+ *
+ * @details A pointer to this function will be passed to each service which may need to inform the
+ *          application about an error.
+ *
+ * @param[in]   nrf_error   Error code containing information about what went wrong.
+ */
+static void nrf_qwr_error_handler(uint32_t nrf_error)
+{
+    APP_ERROR_HANDLER(nrf_error);
+}
+
+/**@brief Function for initializing services that will be used by the application.
+ */
+static void services_init(void)
+{
+    ret_code_t         err_code;
+    nrf_ble_qwr_init_t qwr_init = {0};
+
+    // Initialize Queued Write Module.
+    qwr_init.error_handler = nrf_qwr_error_handler;
+
+    err_code = nrf_ble_qwr_init(&m_qwr, &qwr_init);
+    APP_ERROR_CHECK(err_code);
+
+    err_code = estc_ble_service_init(&m_estc_service);
+    APP_ERROR_CHECK(err_code);
+}
+
+
+/**@brief Function for handling the Connection Parameters Module.
+ *
+ * @details This function will be called for all events in the Connection Parameters Module which
+ *          are passed to the application.
+ *          @note All this function does is to disconnect. This could have been done by simply
+ *                setting the disconnect_on_fail config parameter, but instead we use the event
+ *                handler mechanism to demonstrate its use.
+ *
+ * @param[in] p_evt  Event received from the Connection Parameters Module.
+ */
+static void on_conn_params_evt(ble_conn_params_evt_t * p_evt)
+{
+    ret_code_t err_code;
+
+    if (p_evt->evt_type == BLE_CONN_PARAMS_EVT_FAILED)
     {
-        case APP_USBD_EVT_STOPPED:
-            app_usbd_disable();
+        err_code = sd_ble_gap_disconnect(m_conn_handle, BLE_HCI_CONN_INTERVAL_UNACCEPTABLE);
+        APP_ERROR_CHECK(err_code);
+    }
+}
+
+
+/**@brief Function for handling a Connection Parameters error.
+ *
+ * @param[in] nrf_error  Error code containing information about what went wrong.
+ */
+static void conn_params_error_handler(uint32_t nrf_error)
+{
+    APP_ERROR_HANDLER(nrf_error);
+}
+
+
+/**@brief Function for initializing the Connection Parameters module.
+ */
+static void conn_params_init(void)
+{
+    ret_code_t             err_code;
+    ble_conn_params_init_t cp_init;
+
+    memset(&cp_init, 0, sizeof(cp_init));
+
+    cp_init.p_conn_params                  = NULL;
+    cp_init.first_conn_params_update_delay = FIRST_CONN_PARAMS_UPDATE_DELAY;
+    cp_init.next_conn_params_update_delay  = NEXT_CONN_PARAMS_UPDATE_DELAY;
+    cp_init.max_conn_params_update_count   = MAX_CONN_PARAMS_UPDATE_COUNT;
+    cp_init.start_on_notify_cccd_handle    = BLE_GATT_HANDLE_INVALID;
+    cp_init.disconnect_on_fail             = false;
+    cp_init.evt_handler                    = on_conn_params_evt;
+    cp_init.error_handler                  = conn_params_error_handler;
+
+    err_code = ble_conn_params_init(&cp_init);
+    APP_ERROR_CHECK(err_code);
+}
+
+
+/**@brief Function for starting timers.
+ */
+static void application_timers_start(void)
+{
+}
+
+
+/**@brief Function for putting the chip into sleep mode.
+ *
+ * @note This function will not return.
+ */
+static void sleep_mode_enter(void)
+{
+    ret_code_t err_code;
+
+    err_code = bsp_indication_set(BSP_INDICATE_IDLE);
+    APP_ERROR_CHECK(err_code);
+
+    // Prepare wakeup buttons.
+    err_code = bsp_btn_ble_sleep_mode_prepare();
+    APP_ERROR_CHECK(err_code);
+
+    // Go to system-off mode (this function will not return; wakeup will cause a reset).
+    err_code = sd_power_system_off();
+    APP_ERROR_CHECK(err_code);
+}
+
+
+/**@brief Function for handling advertising events.
+ *
+ * @details This function will be called for advertising events which are passed to the application.
+ *
+ * @param[in] ble_adv_evt  Advertising event.
+ */
+static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
+{
+    ret_code_t err_code;
+
+    switch (ble_adv_evt)
+    {
+        case BLE_ADV_EVT_FAST:
+            NRF_LOG_INFO("ADV Event: Start fast advertising");
+            err_code = bsp_indication_set(BSP_INDICATE_ADVERTISING);
+            APP_ERROR_CHECK(err_code);
             break;
-        case APP_USBD_EVT_POWER_DETECTED:
-            if (!nrf_drv_usbd_is_enabled())
-            {
-                app_usbd_enable();
-            }
+
+        case BLE_ADV_EVT_IDLE:
+            NRF_LOG_INFO("ADV Event: idle, no connectable advertising is ongoing");
+            sleep_mode_enter();
             break;
-        case APP_USBD_EVT_POWER_REMOVED:
-            app_usbd_stop();
-            break;
-        case APP_USBD_EVT_POWER_READY:
-            app_usbd_start();
-            break;
+
         default:
             break;
     }
 }
-NRF_CLI_CDC_ACM_DEF(m_cli_cdc_acm_transport);
-NRF_CLI_DEF(m_cli_cdc_acm,
-            "usb_cli:~$ ",
-            &m_cli_cdc_acm_transport.transport,
-            '\r',
-            4);
-static nrfx_pwm_t pwm_instance = NRFX_PWM_INSTANCE(0);
-static nrf_pwm_values_individual_t pwm_values = {
-    .channel_0 = 0,     
-    .channel_1 = 0,    
-    .channel_2 = 0,     
-    .channel_3 = 0      
-};
-static nrf_pwm_sequence_t pwm_seq =
+
+
+/**@brief Function for handling BLE events.
+ *
+ * @param[in]   p_ble_evt   Bluetooth stack event.
+ * @param[in]   p_context   Unused.
+ */
+static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
 {
-    .values.p_individual = &pwm_values,
-    .length = 4,           
-    .repeats = 0,
-    .end_delay = 0
-};
+    ret_code_t err_code = NRF_SUCCESS;
 
-void update_leds(){
-    pwm_values.channel_0 = (current_app_data.current_color.r * PWM_TOP_VALUE) / 255;
-    pwm_values.channel_1 = (current_app_data.current_color.g * PWM_TOP_VALUE) / 255;
-    pwm_values.channel_2 = (current_app_data.current_color.b * PWM_TOP_VALUE) / 255;
-}
-void hsv_to_rgb(float h, float s, float v, uint32_t* r_out, uint32_t* g_out, uint32_t* b_out){
-    float H = fmodf(h, 360.0f);
-    float S = fminf(100.0f, fmaxf(0.0f, s)) / 100.0f;
-    float V = fminf(100.0f, fmaxf(0.0f, v)) / 100.0f;
-
-    float C = V * S;
-    float X = C * (1.0f - fabsf(fmodf(H / 60.0f, 2.0f) - 1.0f));
-    float m = V - C;
-
-    float r = 0, g = 0, b = 0;
-
-    if (H < 60.0f)        { r = C; g = X; b = 0; }
-    else if (H < 120.0f)  { r = X; g = C; b = 0; }
-    else if (H < 180.0f)  { r = 0; g = C; b = X; }
-    else if (H < 240.0f)  { r = 0; g = X; b = C; }
-    else if (H < 300.0f)  { r = X; g = 0; b = C; }
-    else                  { r = C; g = 0; b = X; }
-
-    int R = (int)((r + m) * (float)255.0f + 0.5f);
-    int G = (int)((g + m) * (float)255.0f + 0.5f);
-    int B = (int)((b + m) * (float)255.0f + 0.5f);
-
-    if (R > 255) R = 255;
-    if (G > 255) G = 255;
-    if (B > 255) B = 255;
-
-    if (R < 0) R = 0;
-    if (G < 0) G = 0;
-    if (B < 0) B = 0;
-
-    *r_out = R;
-    *g_out = G;
-    *b_out = B;
-}
-
-void process_rgb(nrf_cli_t const * p_cli, size_t argc, char ** argv){
-    if(argc != 4){
-        nrf_cli_error(p_cli, "Incorrect num of arguments  : %d\n", argc);
-        return;
-    }
-
-    uint32_t r = atoi(argv[1]);
-    uint32_t g = atoi(argv[2]);
-    uint32_t b = atoi(argv[3]);
-
-    if(r >= 0 && r <= 255 && g >= 0 && g <= 255 && b >= 0 && b <= 255){
-        current_app_data.current_color.r = r;
-        current_app_data.current_color.g = g;
-        current_app_data.current_color.b = b;
-        update_leds();
-
-        save_to_flash();
-
-        nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "RGB set successfully: R=%d, G=%d, B=%d\n", r,g,b);
-    }
-    else {
-        nrf_cli_error(p_cli,"RGB values out of range\n");
-    }
-}
-void process_hsv(nrf_cli_t const * p_cli, size_t argc, char ** argv){
-    if(argc != 4){
-        nrf_cli_error(p_cli, "Incorrect num of arguments : %d\n", argc);
-        return;
-    }
-    uint32_t h = atoi(argv[1]);
-    uint32_t s = atoi(argv[2]);
-    uint32_t v = atoi(argv[3]);
-    uint32_t r_out, g_out, b_out;
-    hsv_to_rgb(h,s,v,&r_out, &g_out, &b_out);
-
-    if(h >= 0 && h <= 360 && s >= 0 && s <= 100 && v >= 0 && v <= 100){
-        current_app_data.current_color.r = r_out;
-        current_app_data.current_color.g = g_out;
-        current_app_data.current_color.b = b_out;
-        update_leds();
-
-        save_to_flash();
-
-        nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "HSV set successfully: H=%d, S=%d, V=%d\n", h,s,v);
-    }
-    else {
-        nrf_cli_error(p_cli,"HSV values out of range\n");
-    }
-}
-void process_help(nrf_cli_t const * p_cli, size_t argc, char ** argv){
-    nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "  Supported commands:\n\n");
-    nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "  RGB <r> <g> <b>   - the device sets current color to specified one.(0-255)\n");
-    nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "  HSV <h> <s> <v>   - the same with RGB, but color is specified in HSV.(H:0-360, S:0-100, V:0-100)\n");
-    nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "  add_rgb_color <r> <g> <b> <color_name>    - add rgb color with name <color_name> to flash.\n");
-    nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "  add_hsv_color <h> <s> <v> <color_name>    - add hsv color with name <color_name> to flash.\n");
-    nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "  add_current_color <color_name>    - add current color with name <color_name> to flash.\n");
-    nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "  del_color <color_name>    - delete color with name <color_name> from flash.\n");
-    nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "  apply_color <color_name>    - apply color with name <color_name>.\n");
-    nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "  list_colors    - list saved colors.\n");
-    nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "  help  - print information about supported commands.\n");
-}
-void add_rgb_color(nrf_cli_t const * p_cli, size_t argc, char ** argv){
-    if(argc != 5){
-        nrf_cli_error(p_cli, "Incorrect num of arguments : %d\n", argc);
-        return;
-    }
-    
-    if(current_app_data.current_num_of_colors + 1 > MAX_NUM_OF_COLORS){
-        nrf_cli_error(p_cli, "Cannot add new color. Storage is full\n");
-        return;
-    }
-    uint32_t r = atoi(argv[1]);
-    uint32_t g = atoi(argv[2]);
-    uint32_t b = atoi(argv[3]);
-
-    if(r >= 0 && r <= 255 && g >= 0 && g <= 255 && b >= 0 && b <= 255){
-        for(int i = 0; i < current_app_data.current_num_of_colors; i++){
-            if(strcmp(current_app_data.list_of_colors[i].name,argv[4]) == 0){
-                nrf_cli_error(p_cli,"Name is taken\n");
-                return;
-            }
-            if(current_app_data.list_of_colors[i].color_value.r == r
-            && current_app_data.list_of_colors[i].color_value.g == g
-            && current_app_data.list_of_colors[i].color_value.b == b){
-                nrf_cli_error(p_cli,"Color already exists with name : %s\n",current_app_data.list_of_colors[i].name);
-                return;
-            }
-        }
-        uint32_t count = current_app_data.current_num_of_colors++;
-        strncpy(current_app_data.list_of_colors[count].name, argv[4], MAX_LEN_OF_NAME - 1);
-        current_app_data.list_of_colors[count].name[MAX_LEN_OF_NAME - 1] = '\0';
-
-        current_app_data.list_of_colors[count].color_value.r = r;
-        current_app_data.list_of_colors[count].color_value.g = g;
-        current_app_data.list_of_colors[count].color_value.b = b;
-
-        save_to_flash();
-
-        nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "Color '%s' saved.\n", argv[4]);
-    }
-    else {
-        nrf_cli_error(p_cli,"RGB values out of range\n");
-    }
-}
-void add_hsv_color(nrf_cli_t const * p_cli, size_t argc, char ** argv){
-    if(argc != 5){
-        nrf_cli_error(p_cli, "Incorrect num of arguments : %d\n", argc);
-        return;
-    }
-    
-    if(current_app_data.current_num_of_colors + 1 > MAX_NUM_OF_COLORS){
-        nrf_cli_error(p_cli, "Cannot add new color. Storage is full\n");
-        return;
-    }
-    uint32_t h = atoi(argv[1]);
-    uint32_t s = atoi(argv[2]);
-    uint32_t v = atoi(argv[3]);
-
-    uint32_t r, g, b;
-    if(h >= 0 && h <= 360 && s >= 0 && s <= 100 && v >= 0 && v <= 100){
-        hsv_to_rgb(h,s,v,&r,&g,&b);
-        for(int i = 0; i < current_app_data.current_num_of_colors; i++){
-            if(strcmp(current_app_data.list_of_colors[i].name,argv[4]) == 0){
-                nrf_cli_error(p_cli,"Name is taken\n");
-                return;
-            }
-            if(current_app_data.list_of_colors[i].color_value.r == r
-            && current_app_data.list_of_colors[i].color_value.g == g
-            && current_app_data.list_of_colors[i].color_value.b == b){
-                nrf_cli_error(p_cli,"Color already exists with name : %s\n",current_app_data.list_of_colors[i].name);
-                return;
-            }
-        }
-        uint32_t count = current_app_data.current_num_of_colors++;
-        strncpy(current_app_data.list_of_colors[count].name, argv[4], MAX_LEN_OF_NAME - 1);
-        current_app_data.list_of_colors[count].name[MAX_LEN_OF_NAME - 1] = '\0';
-
-        current_app_data.list_of_colors[count].color_value.r = r;
-        current_app_data.list_of_colors[count].color_value.g = g;
-        current_app_data.list_of_colors[count].color_value.b = b;
-
-        save_to_flash();
-
-        nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "Color '%s' saved.\n", argv[4]);
-    }
-    else {
-        nrf_cli_error(p_cli,"HSV values out of range\n");
-    }
-}
-void add_current_color(nrf_cli_t const * p_cli, size_t argc, char ** argv){
-    if(argc != 2){
-        nrf_cli_error(p_cli, "Incorrect num of arguments : %d\n", argc);
-        return;
-    }
-    
-    if(current_app_data.current_num_of_colors + 1 > MAX_NUM_OF_COLORS){
-        nrf_cli_error(p_cli, "Cannot add new color. Storage is full\n");
-        return;
-    }
-    uint32_t r = current_app_data.current_color.r;
-    uint32_t g = current_app_data.current_color.g;
-    uint32_t b = current_app_data.current_color.b;
-
-    for(int i = 0; i < current_app_data.current_num_of_colors; i++){
-        if(strcmp(current_app_data.list_of_colors[i].name,argv[1]) == 0){
-            nrf_cli_error(p_cli,"Name is taken\n");
-            return;
-        }
-        if(current_app_data.list_of_colors[i].color_value.r == r
-        && current_app_data.list_of_colors[i].color_value.g == g
-        && current_app_data.list_of_colors[i].color_value.b == b){
-            nrf_cli_error(p_cli,"Color already exists with name : %s\n",current_app_data.list_of_colors[i].name);
-            return;
-        }
-    }
-    uint32_t count = current_app_data.current_num_of_colors++;
-    strncpy(current_app_data.list_of_colors[count].name, argv[1], MAX_LEN_OF_NAME - 1);
-    current_app_data.list_of_colors[count].name[MAX_LEN_OF_NAME - 1] = '\0';
-
-    current_app_data.list_of_colors[count].color_value.r = r;
-    current_app_data.list_of_colors[count].color_value.g = g;
-    current_app_data.list_of_colors[count].color_value.b = b;
-
-    save_to_flash();
-
-    nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "Color '%s' saved.\n", argv[1]);
-}
-void del_color(nrf_cli_t const * p_cli, size_t argc, char ** argv){
-    if(argc != 2){
-        nrf_cli_error(p_cli, "Incorrect num of arguments : %d\n", argc);
-        return;
-    }
-    
-    if(current_app_data.current_num_of_colors == 0){
-        nrf_cli_error(p_cli, "Cannot delete color. Storage is empty\n");
-        return;
-    }
-    
-    bool color_found = false;
-    for(int i = 0; i < current_app_data.current_num_of_colors; i++){
-        if(strcmp(current_app_data.list_of_colors[i].name,argv[1]) == 0){
-            color_found = true;
-            for(int j = i; j < current_app_data.current_num_of_colors - 1; j++){
-                current_app_data.list_of_colors[j] = current_app_data.list_of_colors[j+1];
-            }
-            current_app_data.current_num_of_colors--;
-            save_to_flash();
+    switch (p_ble_evt->header.evt_id)
+    {
+        case BLE_GAP_EVT_DISCONNECTED:
+            NRF_LOG_INFO("Disconnected (conn_handle: %d)", p_ble_evt->evt.gap_evt.conn_handle);
+            // LED indication will be changed when advertising starts.
             break;
-        }
-    }
-    if(color_found){
-        nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "Color '%s' deleted.\n", argv[1]);
-    }
-    else{
-        nrf_cli_error(p_cli, "Cannot find color %s to delete.\n", argv[1]);
-    }
-}
-void apply_color(nrf_cli_t const * p_cli, size_t argc, char ** argv){
-    if(argc != 2){
-        nrf_cli_error(p_cli, "Incorrect num of arguments : %d\n", argc);
-        return;
-    }
-    bool color_found = false;
-    for(int i = 0; i < current_app_data.current_num_of_colors; i++){
-        if(strcmp(current_app_data.list_of_colors[i].name,argv[1]) == 0){
-            color_found = true;
-            uint32_t r = current_app_data.list_of_colors[i].color_value.r;
-            uint32_t g = current_app_data.list_of_colors[i].color_value.g;
-            uint32_t b = current_app_data.list_of_colors[i].color_value.b;
 
-            current_app_data.current_color.r = r;
-            current_app_data.current_color.g = g;
-            current_app_data.current_color.b = b;
-            update_leds();
+        case BLE_GAP_EVT_CONNECTED:
+            NRF_LOG_INFO("Connected (conn_handle: %d)", p_ble_evt->evt.gap_evt.conn_handle);
 
-            save_to_flash();
+            err_code = bsp_indication_set(BSP_INDICATE_CONNECTED);
+            APP_ERROR_CHECK(err_code);
+
+            m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
+            err_code = nrf_ble_qwr_conn_handle_assign(&m_qwr, m_conn_handle);
+            APP_ERROR_CHECK(err_code);
             break;
-        }
-    }
-    if(color_found){
-        nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "Color '%s' applied.\n", argv[1]);
-    }
-    else{
-        nrf_cli_error(p_cli, "Cannot find color %s to apply\n", argv[1]);
+
+        case BLE_GAP_EVT_PHY_UPDATE_REQUEST:
+        {
+            NRF_LOG_DEBUG("PHY update request (conn_handle: %d)", p_ble_evt->evt.gap_evt.conn_handle);
+            ble_gap_phys_t const phys =
+            {
+                .rx_phys = BLE_GAP_PHY_AUTO,
+                .tx_phys = BLE_GAP_PHY_AUTO,
+            };
+            err_code = sd_ble_gap_phy_update(p_ble_evt->evt.gap_evt.conn_handle, &phys);
+            APP_ERROR_CHECK(err_code);
+        } break;
+
+        case BLE_GATTC_EVT_TIMEOUT:
+            // Disconnect on GATT Client timeout event.
+            NRF_LOG_DEBUG("GATT Client Timeout (conn_handle: %d)", p_ble_evt->evt.gattc_evt.conn_handle);
+            err_code = sd_ble_gap_disconnect(p_ble_evt->evt.gattc_evt.conn_handle,
+                                             BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
+            APP_ERROR_CHECK(err_code);
+            break;
+
+        case BLE_GATTS_EVT_TIMEOUT:
+            // Disconnect on GATT Server timeout event.
+            NRF_LOG_DEBUG("GATT Server Timeout (conn_handle: %d)", p_ble_evt->evt.gatts_evt.conn_handle);
+            err_code = sd_ble_gap_disconnect(p_ble_evt->evt.gatts_evt.conn_handle,
+                                             BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
+            APP_ERROR_CHECK(err_code);
+            break;
+
+        default:
+            // No implementation needed.
+            break;
     }
 }
-void list_colors(nrf_cli_t const * p_cli, size_t argc, char ** argv){
-    uint32_t n = current_app_data.current_num_of_colors;
 
-    nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "Current num of colors : %d.\n", n);
-    for(int i = 0; i < n; i++){
-        nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "Name : <%s>,  RGB value : <%d> <%d> <%d>\n", 
-            current_app_data.list_of_colors[i].name,
-            current_app_data.list_of_colors[i].color_value.r,
-            current_app_data.list_of_colors[i].color_value.g,
-            current_app_data.list_of_colors[i].color_value.b
-        );
-    }
-}
 
-NRF_CLI_CMD_REGISTER(add_rgb_color, NULL, NULL, add_rgb_color);
-NRF_CLI_CMD_REGISTER(add_hsv_color, NULL, NULL, add_hsv_color);
-NRF_CLI_CMD_REGISTER(add_current_color, NULL, NULL, add_current_color);
-NRF_CLI_CMD_REGISTER(del_color, NULL, NULL, del_color);
-NRF_CLI_CMD_REGISTER(apply_color, NULL, NULL, apply_color);
-NRF_CLI_CMD_REGISTER(list_colors, NULL, NULL, list_colors);
-NRF_CLI_CMD_REGISTER(RGB, NULL, NULL, process_rgb);
-NRF_CLI_CMD_REGISTER(HSV, NULL, NULL, process_hsv);
-NRF_CLI_CMD_REGISTER(help, NULL, NULL, process_help);
-
-static void cli_init(void)
+/**@brief Function for initializing the BLE stack.
+ *
+ * @details Initializes the SoftDevice and the BLE event interrupt.
+ */
+static void ble_stack_init(void)
 {
-    nrfx_pwm_config_t const config = {
-        .output_pins = {
-            LED_RED_PIN   | NRFX_PWM_PIN_INVERTED,
-            LED_GREEN_PIN | NRFX_PWM_PIN_INVERTED,
-            LED_BLUE_PIN  | NRFX_PWM_PIN_INVERTED,
-            LED1          | NRFX_PWM_PIN_INVERTED
-        },
-        .irq_priority = NRFX_PWM_DEFAULT_CONFIG_IRQ_PRIORITY,
-        .base_clock   = NRF_PWM_CLK_1MHz,
-        .count_mode   = NRF_PWM_MODE_UP,
-        .top_value    = PWM_TOP_VALUE,
-        .load_mode    = NRF_PWM_LOAD_INDIVIDUAL,
-        .step_mode    = NRF_PWM_STEP_AUTO
-    };
-    nrfx_pwm_init(&pwm_instance, &config, NULL);
-    nrfx_pwm_simple_playback(&pwm_instance, &pwm_seq, 1, NRFX_PWM_FLAG_LOOP);
+    ret_code_t err_code;
 
-    ret_code_t ret;
+    err_code = nrf_sdh_enable_request();
+    APP_ERROR_CHECK(err_code);
 
-    ret = nrf_cli_init(&m_cli_cdc_acm, NULL, true, true, NRF_LOG_SEVERITY_INFO);
-    APP_ERROR_CHECK(ret);
+    // Configure the BLE stack using the default settings.
+    // Fetch the start address of the application RAM.
+    uint32_t ram_start = 0;
+    err_code = nrf_sdh_ble_default_cfg_set(APP_BLE_CONN_CFG_TAG, &ram_start);
+    APP_ERROR_CHECK(err_code);
 
-    static const app_usbd_config_t usbd_config = {
-        .ev_handler = app_usbd_event_execute,
-        .ev_state_proc = usbd_user_ev_handler
-    };
-    ret = app_usbd_init(&usbd_config);
-    APP_ERROR_CHECK(ret);
+    // Enable BLE stack.
+    err_code = nrf_sdh_ble_enable(&ram_start);
+    APP_ERROR_CHECK(err_code);
 
-    app_usbd_class_inst_t const * class_cdc_acm =
-            app_usbd_cdc_acm_class_inst_get(&nrf_cli_cdc_acm);
-    ret = app_usbd_class_append(class_cdc_acm);
-    APP_ERROR_CHECK(ret);
-
-    ret = app_usbd_power_events_enable();
-    APP_ERROR_CHECK(ret);
-    
-    /* Give some time for the host to enumerate and connect to the USB CDC port */
-    nrf_delay_ms(1000);
-
-    ret = nrf_cli_start(&m_cli_cdc_acm);
-    APP_ERROR_CHECK(ret);
+    // Register a handler for BLE events.
+    NRF_SDH_BLE_OBSERVER(m_ble_observer, APP_BLE_OBSERVER_PRIO, ble_evt_handler, NULL);
 }
-static void cli_process(void)
+
+
+/**@brief Function for handling events from the BSP module.
+ *
+ * @param[in]   event   Event generated when button is pressed.
+ */
+static void bsp_event_handler(bsp_event_t event)
 {
-    nrf_cli_process(&m_cli_cdc_acm);
+    ret_code_t err_code;
+
+    switch (event)
+    {
+        case BSP_EVENT_SLEEP:
+            sleep_mode_enter();
+            break; // BSP_EVENT_SLEEP
+
+        case BSP_EVENT_DISCONNECT:
+            err_code = sd_ble_gap_disconnect(m_conn_handle,
+                                             BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
+            if (err_code != NRF_ERROR_INVALID_STATE)
+            {
+                APP_ERROR_CHECK(err_code);
+            }
+            break; // BSP_EVENT_DISCONNECT
+        default:
+            break;
+    }
 }
+
+
+/**@brief Function for initializing the Advertising functionality.
+ */
+static void advertising_init(void)
+{
+    ret_code_t             err_code;
+    ble_advertising_init_t init;
+
+    memset(&init, 0, sizeof(init));
+
+    init.advdata.name_type          = BLE_ADVDATA_SHORT_NAME;
+    init.advdata.short_name_len     = 3;   
+    init.advdata.include_appearance = false;
+    init.advdata.flags              = BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE;
+
+    init.srdata.name_type = BLE_ADVDATA_FULL_NAME;
+    init.srdata.uuids_complete.uuid_cnt = sizeof(m_adv_uuids) / sizeof(m_adv_uuids[0]);
+    init.srdata.uuids_complete.p_uuids  = m_adv_uuids;
+
+    init.config.ble_adv_fast_enabled  = true;
+    init.config.ble_adv_fast_interval = APP_ADV_INTERVAL;
+    init.config.ble_adv_fast_timeout  = APP_ADV_DURATION;
+
+    init.evt_handler = on_adv_evt;
+
+    err_code = ble_advertising_init(&m_advertising, &init);
+    APP_ERROR_CHECK(err_code);
+
+    ble_advertising_conn_cfg_tag_set(&m_advertising, APP_BLE_CONN_CFG_TAG);
+}
+
+
+/**@brief Function for initializing buttons and leds.
+ *
+ * @param[out] p_erase_bonds  Will be true if the clear bonding button was pressed to wake the application up.
+ */
+static void buttons_leds_init(void)
+{
+    ret_code_t err_code;
+
+    err_code = bsp_init(BSP_INIT_LEDS | BSP_INIT_BUTTONS, bsp_event_handler);
+    APP_ERROR_CHECK(err_code);
+
+    err_code = bsp_btn_ble_init(NULL, NULL);
+    APP_ERROR_CHECK(err_code);
+}
+
+
+/**@brief Function for initializing the nrf log module.
+ */
+static void log_init(void)
+{
+    ret_code_t err_code = NRF_LOG_INIT(NULL);
+    APP_ERROR_CHECK(err_code);
+
+    NRF_LOG_DEFAULT_BACKENDS_INIT();
+}
+
+
+/**@brief Function for initializing power management.
+ */
+static void power_management_init(void)
+{
+    ret_code_t err_code;
+    err_code = nrf_pwr_mgmt_init();
+    APP_ERROR_CHECK(err_code);
+}
+
+
+/**@brief Function for handling the idle state (main loop).
+ *
+ * @details If there is no pending log operation, then sleep until next the next event occurs.
+ */
+static void idle_state_handle(void)
+{
+    if (NRF_LOG_PROCESS() == false)
+    {
+        nrf_pwr_mgmt_run();
+    }
+	LOG_BACKEND_USB_PROCESS();
+}
+
+
+/**@brief Function for starting advertising.
+ */
+static void advertising_start(void)
+{
+    ret_code_t err_code = ble_advertising_start(&m_advertising, BLE_ADV_MODE_FAST);
+    APP_ERROR_CHECK(err_code);
+}
+
+
+/**@brief Function for application main entry.
+ */
 int main(void)
 {
-    ret_code_t ret;
+    // Initialize.
+    log_init();
+    timers_init();
+    buttons_leds_init();
+    power_management_init();
+    ble_stack_init();
+    gap_params_init();
+    gatt_init();
+    services_init();
+    advertising_init();
+    conn_params_init();
 
-    ret = nrf_drv_clock_init();
-    APP_ERROR_CHECK(ret);
-    nrf_drv_clock_lfclk_request(NULL);
+    // Start execution.
+    NRF_LOG_INFO("ESTC GATT service example started");
+    application_timers_start();
 
-    cli_init();
-    
-    saved_app_data* p_flash = (saved_app_data*)FLASH_SAVE_ADDR;
-    if (p_flash->current_num_of_colors > MAX_NUM_OF_COLORS) {
-        memset(&current_app_data, 0, sizeof(current_app_data));
-        current_app_data.current_color.r = 0;
-        current_app_data.current_color.g = 0;
-        current_app_data.current_color.b = 0;
-        current_app_data.current_num_of_colors = 0;
-        
-        save_to_flash();
-    }
-    else{
-        memcpy(&current_app_data, p_flash, sizeof(saved_app_data));
-    }
-    update_leds();
+    advertising_start();
 
-    while (true)
+    // Enter main loop.
+    for (;;)
     {
-        cli_process();
-
-        if (NRF_LOG_PROCESS() == false)
-        {
-            __WFE();
-        }
+        idle_state_handle();
     }
 }
 
-/** @} */
+
+/**
+ * @}
+ */
