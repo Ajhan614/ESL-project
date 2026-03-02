@@ -110,7 +110,8 @@ static uint16_t m_conn_handle = BLE_CONN_HANDLE_INVALID;                        
 static ble_uuid_t m_adv_uuids[] =                                               /**< Universally unique service identifiers. */
 {
     {BLE_UUID_DEVICE_INFORMATION_SERVICE, BLE_UUID_TYPE_BLE},
-    // TODO: 5. Add ESTC service UUID to the table
+    {ESTC_SERVICE_UUID, BLE_UUID_TYPE_VENDOR_BEGIN},
+    // TODO: 7. Add ESTC service UUID to the table
 };
 
 ble_estc_service_t m_estc_service; /**< ESTC example BLE service */
@@ -455,14 +456,12 @@ static void advertising_init(void)
 
     memset(&init, 0, sizeof(init));
 
-    init.advdata.name_type          = BLE_ADVDATA_SHORT_NAME;
-    init.advdata.short_name_len     = 3;   
+    init.advdata.name_type          = BLE_ADVDATA_FULL_NAME;
     init.advdata.include_appearance = false;
     init.advdata.flags              = BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE;
 
-    init.srdata.name_type = BLE_ADVDATA_FULL_NAME;
     init.srdata.uuids_complete.uuid_cnt = sizeof(m_adv_uuids) / sizeof(m_adv_uuids[0]);
-    init.srdata.uuids_complete.p_uuids  = m_adv_uuids;
+	init.srdata.uuids_complete.p_uuids = m_adv_uuids;
 
     init.config.ble_adv_fast_enabled  = true;
     init.config.ble_adv_fast_interval = APP_ADV_INTERVAL;
@@ -550,11 +549,12 @@ int main(void)
     gap_params_init();
     gatt_init();
     services_init();
+    m_adv_uuids[1].type = m_estc_service.uuid_type;
     advertising_init();
     conn_params_init();
 
     // Start execution.
-    NRF_LOG_INFO("ESTC GATT service example started");
+    NRF_LOG_INFO("ESTC GATT server example started");
     application_timers_start();
 
     advertising_start();

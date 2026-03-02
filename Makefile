@@ -1,4 +1,4 @@
-PROJECT_NAME     := estc_service_pca10059_s140
+PROJECT_NAME     := estc_gatt_srv_pca10059_s140
 TARGETS          := nrf52840_xxaa
 OUTPUT_DIRECTORY := _build
 DFU_PORT         ?= /dev/ttyACM0
@@ -7,7 +7,7 @@ SDK_ROOT ?= /home/user/devel/esl-nsdk
 PROJ_DIR := .
 
 $(OUTPUT_DIRECTORY)/nrf52840_xxaa.out: \
-  LINKER_SCRIPT  := estc_service_gcc_nrf52.ld
+  LINKER_SCRIPT  := estc_gatt_srv_gcc_nrf52.ld
 
 # Source files common to all targets
 SRC_FILES += \

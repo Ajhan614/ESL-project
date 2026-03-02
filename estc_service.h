@@ -42,13 +42,24 @@
 
 // TODO: 2. Pick a random service 16-bit UUID and define it:
 
-#define ESTC_SERVICE_UUID 0x3201
+#define ESTC_SERVICE_UUID 0xF001
+// TODO: 3. Pick a characteristic UUID and define it:
+#define ESTC_GATT_CHAR_1_UUID 0xBEE1
 
 typedef struct
 {
     uint16_t service_handle;
+    uint16_t connection_handle;
+    uint8_t  uuid_type;
+    // TODO: 6.3. Add handles for characterstic (type: ble_gatts_char_handles_t)
+    ble_gatts_char_handles_t char_handles;
 } ble_estc_service_t;
 
 ret_code_t estc_ble_service_init(ble_estc_service_t *service);
+
+void estc_ble_service_on_ble_event(const ble_evt_t *ble_evt, void *ctx);
+
+void estc_update_characteristic_1_value(ble_estc_service_t *service, int32_t *value);
+
 
 #endif /* ESTC_SERVICE_H__ */
