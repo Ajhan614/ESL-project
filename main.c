@@ -74,6 +74,8 @@
 #include "nrf_ble_gatt.h"
 #include "nrf_ble_qwr.h"
 #include "nrf_pwr_mgmt.h"
+#include "nrfx_nvmc.h"
+#include "nrfx_pwm.h"
 
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
@@ -81,6 +83,14 @@
 #include "nrf_log_backend_usb.h"
 
 #include "estc_service.h"
+
+#define LED_RED_PIN NRF_GPIO_PIN_MAP(0,8) 
+#define LED_GREEN_PIN NRF_GPIO_PIN_MAP(1,9)  
+#define LED_BLUE_PIN NRF_GPIO_PIN_MAP(0,12)  
+#define LED1 NRF_GPIO_PIN_MAP(0,6)
+#define PWM_TOP_VALUE 1000
+#define CONFIG_FILE     0x0001
+#define CONFIG_REC_KEY  0x0002
 
 #define DEVICE_NAME                     "Kim Darya"                              /**< Name of device. Will be included in the advertising data. */
 #define MANUFACTURER_NAME               "NordicSemiconductor"                   /**< Manufacturer. Will be passed to Device Information Service. */
@@ -101,14 +111,9 @@
 
 #define DEAD_BEEF                       0xDEADBEEF                              /**< Value used as error code on stack dump, can be used to identify stack location on stack unwind. */
 
-#define NOTIFY_INTERVAL     APP_TIMER_TICKS(1000)
-#define INDICATE_INTERVAL   APP_TIMER_TICKS(2500)
-
 NRF_BLE_GATT_DEF(m_gatt);                                                       /**< GATT module instance. */
 NRF_BLE_QWR_DEF(m_qwr);                                                         /**< Context for the Queued Write module.*/
 BLE_ADVERTISING_DEF(m_advertising);                                             /**< Advertising module instance. */
-APP_TIMER_DEF(m_notify_timer_id);
-APP_TIMER_DEF(m_indicate_timer_id);
 
 static uint16_t m_conn_handle = BLE_CONN_HANDLE_INVALID;                        /**< Handle of the current connection. */
 
@@ -118,11 +123,89 @@ static ble_uuid_t m_adv_uuids[] =                                               
     {ESTC_SERVICE_UUID, BLE_UUID_TYPE_VENDOR_BEGIN},
 };
 
+static nrfx_pwm_t pwm_instance = NRFX_PWM_INSTANCE(0);
+static nrf_pwm_values_individual_t pwm_values;
+static nrf_pwm_sequence_t pwm_seq =
+{
+    .values.p_individual = &pwm_values,
+    .length = 4,           
+    .repeats = 0,
+    .end_delay = 0
+};
+
+rgb_color current_app_data;
+static volatile bool m_fds_initialized = false;
+
 ble_estc_service_t m_estc_service; /**< ESTC example BLE service */
 
 static void advertising_start(void);
 
+static void fds_evt_handler(fds_evt_t const * p_evt)
+{
+    switch (p_evt->id)
+    {
+        case FDS_EVT_INIT:
+            if (p_evt->result == NRF_SUCCESS)
+            {
+                m_fds_initialized = true;
+            }
+            break;
+        default:
+            break;
+    }
+}
+void app_data_save(void)
+{
+    fds_record_desc_t desc = {0};
+    fds_find_token_t  tok  = {0};
 
+    fds_record_t const record = {
+        .file_id           = CONFIG_FILE,
+        .key               = CONFIG_REC_KEY,
+        .data.p_data       = &current_app_data,
+        .data.length_words = sizeof(rgb_color)/ 4, 
+    };
+
+    ret_code_t err_code;
+
+    if (fds_record_find(CONFIG_FILE, CONFIG_REC_KEY, &desc, &tok) == NRF_SUCCESS)
+    {
+        err_code = fds_record_update(&desc, &record); 
+    }
+    else
+    {
+        err_code = fds_record_write(&desc, &record); 
+    }
+
+    if (err_code == FDS_ERR_NO_SPACE_IN_FLASH)
+    {
+        fds_gc();
+    }
+    else
+    {
+        APP_ERROR_CHECK(err_code);
+    }
+}
+void app_data_load(void)
+{
+    fds_record_desc_t desc = {0};
+    fds_find_token_t  tok  = {0};
+    
+    if (fds_record_find(CONFIG_FILE, CONFIG_REC_KEY, &desc, &tok) == NRF_SUCCESS)
+    {
+        fds_flash_record_t config = {0};
+        if (fds_record_open(&desc, &config) == NRF_SUCCESS)
+        {
+            memcpy(&current_app_data, config.p_data, sizeof(rgb_color));
+            fds_record_close(&desc);
+            return;
+        }
+    }
+    
+    memset(&current_app_data, 0, sizeof(current_app_data));
+    current_app_data.state = 1;
+    app_data_save();
+}
 /**@brief Callback function for asserts in the SoftDevice.
  *
  * @details This function will be called in case of an assert in the SoftDevice.
@@ -143,31 +226,10 @@ void assert_nrf_callback(uint16_t line_num, const uint8_t * p_file_name)
  *
  * @details Initializes the timer module. This creates and starts application timers.
  */
- static void notify_timer_timeout_handler(void * p_context)
-{
-    static uint8_t notify_value = 0;
-    notify_value++;
-    estc_update_notify_characteristic(&m_estc_service, &notify_value);
-}
 
-static void indicate_timer_timeout_handler(void * p_context)
-{
-    static uint8_t indicate_value = 100;
-    indicate_value++;
-    estc_update_indicate_characteristic(&m_estc_service, &indicate_value);
-}
 static void timers_init(void)
 {
     ret_code_t err_code = app_timer_init();
-    APP_ERROR_CHECK(err_code);
-    err_code = app_timer_create(&m_notify_timer_id, 
-                                APP_TIMER_MODE_REPEATED, 
-                                notify_timer_timeout_handler);
-    APP_ERROR_CHECK(err_code);
-
-    err_code = app_timer_create(&m_indicate_timer_id, 
-                                APP_TIMER_MODE_REPEATED, 
-                                indicate_timer_timeout_handler);
     APP_ERROR_CHECK(err_code);
 }
 
@@ -239,7 +301,7 @@ static void services_init(void)
     err_code = nrf_ble_qwr_init(&m_qwr, &qwr_init);
     APP_ERROR_CHECK(err_code);
 
-    err_code = estc_ble_service_init(&m_estc_service);
+    err_code = estc_ble_service_init(&m_estc_service, &current_app_data);
     APP_ERROR_CHECK(err_code);
 }
 
@@ -303,13 +365,7 @@ static void conn_params_init(void)
  */
 static void application_timers_start(void)
 {
-    ret_code_t err_code;
 
-    err_code = app_timer_start(m_notify_timer_id, NOTIFY_INTERVAL, NULL);
-    APP_ERROR_CHECK(err_code);
-
-    err_code = app_timer_start(m_indicate_timer_id, INDICATE_INTERVAL, NULL);
-    APP_ERROR_CHECK(err_code);
 }
 
 
@@ -418,6 +474,53 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
                                              BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
             APP_ERROR_CHECK(err_code);
             break;
+
+        case BLE_GATTS_EVT_WRITE:
+        {
+            ble_gatts_evt_write_t const * p_evt_write = &p_ble_evt->evt.gatts_evt.params.write;
+            uint8_t value = p_evt_write->data[0];
+
+            if (p_evt_write->handle == m_estc_service.char_r_handles.value_handle)
+            {
+                if(current_app_data.state == 1)
+                    pwm_values.channel_0 = (PWM_TOP_VALUE * value) / 255;
+                current_app_data.r = value;
+                estc_update_characteristic(&m_estc_service, &value, &m_estc_service.char_r_handles);
+            }
+            else if (p_evt_write->handle == m_estc_service.char_g_handles.value_handle)
+            {
+                if(current_app_data.state == 1)
+                    pwm_values.channel_1 = (PWM_TOP_VALUE * value) / 255;
+                current_app_data.g = value;
+                estc_update_characteristic(&m_estc_service, &value, &m_estc_service.char_g_handles);
+            }
+            else if (p_evt_write->handle == m_estc_service.char_b_handles.value_handle)
+            {
+                if(current_app_data.state == 1)
+                    pwm_values.channel_2 = (PWM_TOP_VALUE * value) / 255;
+                current_app_data.b = value;
+                estc_update_characteristic(&m_estc_service, &value, &m_estc_service.char_b_handles);
+            }
+            else if(p_evt_write->handle == m_estc_service.char_state_handles.value_handle){
+                if(value == 1){
+                    pwm_values.channel_0 = (PWM_TOP_VALUE * current_app_data.r) / 255;
+                    pwm_values.channel_1 = (PWM_TOP_VALUE * current_app_data.g) / 255;
+                    pwm_values.channel_2 = (PWM_TOP_VALUE * current_app_data.b) / 255;
+                    current_app_data.state = value;
+                    estc_update_characteristic(&m_estc_service, &value, &m_estc_service.char_state_handles);
+                }
+                else{
+                    pwm_values.channel_0 = 0;
+                    pwm_values.channel_1 = 0;
+                    pwm_values.channel_2 = 0;
+                    current_app_data.state = value;
+                    estc_update_characteristic(&m_estc_service, &value, &m_estc_service.char_state_handles);
+                }
+            }
+            app_data_save();
+            nrfx_pwm_simple_playback(&pwm_instance, &pwm_seq, 1, NRFX_PWM_FLAG_LOOP);
+            break;
+        }
 
         default:
             // No implementation needed.
@@ -567,8 +670,41 @@ static void advertising_start(void)
     ret_code_t err_code = ble_advertising_start(&m_advertising, BLE_ADV_MODE_FAST);
     APP_ERROR_CHECK(err_code);
 }
+static void pwm_init(void){
+    nrfx_pwm_config_t const config = {
+        .output_pins = {
+            LED_RED_PIN   | NRFX_PWM_PIN_INVERTED,
+            LED_GREEN_PIN | NRFX_PWM_PIN_INVERTED,
+            LED_BLUE_PIN  | NRFX_PWM_PIN_INVERTED,
+            LED1          | NRFX_PWM_PIN_INVERTED
+        },
+        .irq_priority = NRFX_PWM_DEFAULT_CONFIG_IRQ_PRIORITY,
+        .base_clock   = NRF_PWM_CLK_1MHz,
+        .count_mode   = NRF_PWM_MODE_UP,
+        .top_value    = PWM_TOP_VALUE,
+        .load_mode    = NRF_PWM_LOAD_INDIVIDUAL,
+        .step_mode    = NRF_PWM_STEP_AUTO
+    };
+    nrfx_pwm_init(&pwm_instance, &config, NULL);
+    pwm_values.channel_0 = 0;
+    pwm_values.channel_1 = 0;
+    pwm_values.channel_2 = 0;
+    pwm_values.channel_3 = 0;
+    nrfx_pwm_simple_playback(&pwm_instance, &pwm_seq, 1, NRFX_PWM_FLAG_LOOP);
+}
+static void fds_my_init(void)
+{
+    ret_code_t err_code = fds_register(fds_evt_handler);
+    APP_ERROR_CHECK(err_code);
+    
+    err_code = fds_init();
+    APP_ERROR_CHECK(err_code);
 
-
+    while (!m_fds_initialized)
+    {
+        idle_state_handle();
+    }
+}
 /**@brief Function for application main entry.
  */
 int main(void)
@@ -577,8 +713,15 @@ int main(void)
     log_init();
     timers_init();
     buttons_leds_init();
+    pwm_init();
     power_management_init();
     ble_stack_init();
+    fds_my_init();
+    app_data_load();
+    pwm_values.channel_0 = (PWM_TOP_VALUE * current_app_data.r) / 255;
+    pwm_values.channel_1 = (PWM_TOP_VALUE * current_app_data.g) / 255;
+    pwm_values.channel_2 = (PWM_TOP_VALUE * current_app_data.b) / 255;
+    nrfx_pwm_simple_playback(&pwm_instance, &pwm_seq, 1, NRFX_PWM_FLAG_LOOP);
     gap_params_init();
     gatt_init();
     services_init();

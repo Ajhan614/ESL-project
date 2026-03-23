@@ -36,33 +36,30 @@
 #include "ble.h"
 #include "sdk_errors.h"
 
-// TODO: 1. Generate random BLE UUID (Version 4 UUID) and define it in the following format:
-//UUID : 755071f4-5460-4c14-82fe-77851cdbc397
 #define ESTC_BASE_UUID { 0x97, 0xc3, 0xdb, 0x1c, 0x85, 0x77, /* - */ 0xfe, 0x82, /* - */ 0x14, 0x4c, /* - */ 0x60, 0x54, /* - */ 0x00, 0x00, 0x50, 0x75 }
-
-// TODO: 2. Pick a random service 16-bit UUID and define it:
-
 #define ESTC_SERVICE_UUID 0xAEE1
-// TODO: 3. Pick a characteristic UUID and define it:
-#define ESTC_GATT_CHAR_1_UUID 0xBEE1
-#define ESTC_GATT_CHAR_NOTIFY_UUID 0xCEE1
-#define ESTC_GATT_CHAR_INDICATE_UUID 0xDEE1
+
+#define ESTC_GATT_CHAR_STATE_UUID 0xBEE1
+#define ESTC_GATT_CHAR_R_UUID 0xCEE1
+#define ESTC_GATT_CHAR_G_UUID 0xDEE1
+#define ESTC_GATT_CHAR_B_UUID 0xEEE1
 
 typedef struct
 {
     uint16_t service_handle;
     uint16_t connection_handle;
     uint8_t  uuid_type;
-    ble_gatts_char_handles_t char_notify_handles;
-    ble_gatts_char_handles_t char_indicate_handles;
-    ble_gatts_char_handles_t char_handles;
+    ble_gatts_char_handles_t char_r_handles;
+    ble_gatts_char_handles_t char_g_handles;
+    ble_gatts_char_handles_t char_b_handles;
+    ble_gatts_char_handles_t char_state_handles;
 } ble_estc_service_t;
 
-ret_code_t estc_ble_service_init(ble_estc_service_t *service);
+typedef struct{
+    uint8_t r,g,b, state;
+}rgb_color;
 
-void estc_ble_service_on_ble_event(const ble_evt_t *ble_evt, void *ctx);
+ret_code_t estc_ble_service_init(ble_estc_service_t *service, rgb_color *p_init_data);
 
-void estc_update_notify_characteristic(ble_estc_service_t *service, uint8_t *value);
-void estc_update_indicate_characteristic(ble_estc_service_t *service, uint8_t *value);
-
+void estc_update_characteristic(ble_estc_service_t *service, uint8_t *value, ble_gatts_char_handles_t * p_handles);
 #endif /* ESTC_SERVICE_H__ */
