@@ -163,7 +163,7 @@ void app_data_save(void)
         .file_id           = CONFIG_FILE,
         .key               = CONFIG_REC_KEY,
         .data.p_data       = &current_app_data,
-        .data.length_words = sizeof(rgb_color)/ 4, 
+        .data.length_words = (sizeof(rgb_color) + 3)/ 4, 
     };
 
     ret_code_t err_code;
@@ -203,7 +203,7 @@ void app_data_load(void)
     }
     
     memset(&current_app_data, 0, sizeof(current_app_data));
-    current_app_data.state = 1;
+    current_app_data.state = true;
     app_data_save();
 }
 /**@brief Callback function for asserts in the SoftDevice.
@@ -482,34 +482,34 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
 
             if (p_evt_write->handle == m_estc_service.char_r_handles.value_handle)
             {
-                if(current_app_data.state == 1)
+                if(current_app_data.state == true)
                     pwm_values.channel_0 = (PWM_TOP_VALUE * value) / 255;
                 current_app_data.r = value;
                 estc_update_characteristic(&m_estc_service, &value, &m_estc_service.char_r_handles);
             }
             else if (p_evt_write->handle == m_estc_service.char_g_handles.value_handle)
             {
-                if(current_app_data.state == 1)
+                if(current_app_data.state == true)
                     pwm_values.channel_1 = (PWM_TOP_VALUE * value) / 255;
                 current_app_data.g = value;
                 estc_update_characteristic(&m_estc_service, &value, &m_estc_service.char_g_handles);
             }
             else if (p_evt_write->handle == m_estc_service.char_b_handles.value_handle)
             {
-                if(current_app_data.state == 1)
+                if(current_app_data.state == true)
                     pwm_values.channel_2 = (PWM_TOP_VALUE * value) / 255;
                 current_app_data.b = value;
                 estc_update_characteristic(&m_estc_service, &value, &m_estc_service.char_b_handles);
             }
             else if(p_evt_write->handle == m_estc_service.char_state_handles.value_handle){
-                if(value == 1){
+                if(value == true){
                     pwm_values.channel_0 = (PWM_TOP_VALUE * current_app_data.r) / 255;
                     pwm_values.channel_1 = (PWM_TOP_VALUE * current_app_data.g) / 255;
                     pwm_values.channel_2 = (PWM_TOP_VALUE * current_app_data.b) / 255;
                     current_app_data.state = value;
                     estc_update_characteristic(&m_estc_service, &value, &m_estc_service.char_state_handles);
                 }
-                else{
+                else if (value == false){
                     pwm_values.channel_0 = 0;
                     pwm_values.channel_1 = 0;
                     pwm_values.channel_2 = 0;

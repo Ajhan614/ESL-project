@@ -88,7 +88,7 @@ static ret_code_t estc_ble_add_characteristics(ble_estc_service_t *service,rgb_c
 
     error_code = ble_char_add_helper(service, 
                                   ESTC_GATT_CHAR_STATE_UUID,
-                                  sizeof(uint8_t), &p_init_data->state,
+                                  sizeof(uint8_t), (uint8_t*)&p_init_data->state,
                                   "LED On/Off",
                                   &service->char_state_handles);
     APP_ERROR_CHECK(error_code);

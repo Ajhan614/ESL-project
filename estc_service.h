@@ -32,6 +32,7 @@
 #define ESTC_SERVICE_H__
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #include "ble.h"
 #include "sdk_errors.h"
@@ -56,7 +57,8 @@ typedef struct
 } ble_estc_service_t;
 
 typedef struct{
-    uint8_t r,g,b, state;
+    uint8_t r,g,b;
+    bool state;
 }rgb_color;
 
 ret_code_t estc_ble_service_init(ble_estc_service_t *service, rgb_color *p_init_data);
